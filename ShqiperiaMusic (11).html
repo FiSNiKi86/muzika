@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#080808">
+<title>Shqipëria Music</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Raleway:wght@400;600&display=swap');
+:root{--r:#CC0000;--dr:#8B0000;--g:#D4AF37;--w:#F5F0E8;--bk:#080808;--g1:#181818;--g2:#242424;}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow-x:hidden;}
+body{background:var(--bk);color:var(--w);font-family:'Raleway',sans-serif;}
+.bg{position:fixed;inset:0;background:radial-gradient(ellipse at 10% 60%,rgba(139,0,0,.2) 0%,transparent 50%);pointer-events:none;z-index:0;}
+.app{position:relative;z-index:1;max-width:480px;margin:0 auto;padding-bottom:240px;}
+
+/* YT player - real visible size required for mobile autoplay */
+#ytc{position:fixed;bottom:0;right:0;width:1px;height:1px;overflow:hidden;opacity:0.001;pointer-events:none;z-index:1;}
+#ytc iframe{width:320px!important;height:180px!important;}
+
+/* SPLASH shown only until first tap */
+#splash{position:fixed;inset:0;z-index:9000;background:var(--bk);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:32px;}
+#splash.hide{display:none;}
+#splashBtn{width:100%;max-width:320px;padding:18px;background:var(--r);border:none;border-radius:14px;font-family:'Cinzel',serif;font-size:16px;letter-spacing:2px;color:#fff;cursor:pointer;box-shadow:0 0 40px rgba(204,0,0,.6);}
+
+.hdr{padding:12px 16px;border-bottom:1px solid rgba(204,0,0,.35);display:flex;align-items:center;gap:12px;background:rgba(6,6,6,.98);position:sticky;top:0;z-index:100;}
+.lsvg{width:46px;height:46px;flex-shrink:0;}
+.ltx{flex:1;}
+.lti{font-family:'Cinzel',serif;font-size:18px;font-weight:900;letter-spacing:3px;}
+.lsu{font-size:9px;letter-spacing:4px;color:var(--r);margin-top:2px;}
+.eq{display:flex;gap:2px;align-items:flex-end;height:16px;}
+.eq span{width:3px;border-radius:2px;background:var(--r);animation:eq .5s infinite ease-in-out alternate;}
+.eq span:nth-child(1){height:5px;animation-delay:0s;}
+.eq span:nth-child(2){height:13px;animation-delay:.08s;}
+.eq span:nth-child(3){height:8px;animation-delay:.16s;}
+.eq span:nth-child(4){height:16px;animation-delay:.04s;}
+.eq span:nth-child(5){height:6px;animation-delay:.12s;}
+.eq.off span{animation-play-state:paused;}
+@keyframes eq{0%{transform:scaleY(.3);}100%{transform:scaleY(1);}}
+.sw{padding:14px 16px 10px;}
+.sb{display:flex;background:var(--g1);border:1.5px solid rgba(204,0,0,.4);border-radius:10px;overflow:hidden;}
+.sb:focus-within{border-color:var(--r);}
+.sb input{flex:1;background:transparent;border:none;outline:none;padding:13px 14px;color:var(--w);font-family:'Raleway',sans-serif;font-size:15px;}
+.sb input::placeholder{color:rgba(245,240,232,.28);}
+.sgo{background:var(--r);border:none;cursor:pointer;padding:0 20px;color:#fff;font-size:18px;}
+.status{margin:0 16px 10px;padding:9px 13px;border-radius:8px;font-size:12px;display:none;line-height:1.6;}
+.status.err{background:rgba(204,0,0,.15);border:1px solid rgba(204,0,0,.4);color:#ff9999;display:block;}
+.status.ok{background:rgba(0,160,0,.1);border:1px solid rgba(0,160,0,.3);color:#88ee88;display:block;}
+.status.inf{background:rgba(212,175,55,.1);border:1px solid rgba(212,175,55,.3);color:var(--g);display:block;}
+.tabs{display:flex;padding:0 16px;margin-bottom:8px;}
+.tab{flex:1;padding:8px 4px;text-align:center;font-size:10px;letter-spacing:1px;text-transform:uppercase;font-family:'Cinzel',serif;border:none;background:transparent;cursor:pointer;color:rgba(245,240,232,.3);border-bottom:2px solid transparent;transition:all .2s;}
+.tab.on{color:var(--r);border-bottom-color:var(--r);}
+.tc{display:none;}.tc.on{display:block;}
+.stl{font-family:'Cinzel',serif;font-size:10px;letter-spacing:3px;color:var(--r);margin:4px 16px 8px;display:flex;align-items:center;gap:8px;}
+.stl::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(204,0,0,.4),transparent);}
+.trk{display:flex;gap:10px;align-items:center;padding:9px 10px;border-radius:8px;cursor:pointer;margin:0 6px 3px;border:1px solid transparent;}
+.trk:active{background:rgba(204,0,0,.15);}
+.trk.on{background:rgba(204,0,0,.2);border-color:rgba(204,0,0,.5);}
+.tth{width:56px;height:56px;border-radius:6px;background:var(--g2);flex-shrink:0;overflow:hidden;position:relative;}
+.tth img{width:100%;height:100%;object-fit:cover;display:block;}
+.tno{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--g2);}
+.pov{position:absolute;inset:0;background:rgba(204,0,0,.8);display:flex;align-items:center;justify-content:center;opacity:0;font-size:18px;}
+.trk.on .pov{opacity:1;}
+.ti{flex:1;min-width:0;}
+.tn{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tc2{font-size:11px;color:rgba(245,240,232,.4);margin-top:3px;}
+.td{font-size:11px;color:rgba(245,240,232,.28);white-space:nowrap;}
+.dots{display:flex;gap:7px;justify-content:center;padding:30px;}
+.dots i{width:9px;height:9px;border-radius:50%;background:var(--r);animation:bn .8s infinite;display:block;}
+.dots i:nth-child(2){animation-delay:.15s;}.dots i:nth-child(3){animation-delay:.3s;}
+@keyframes bn{0%,80%,100%{transform:scale(.55);opacity:.25;}40%{transform:scale(1.1);opacity:1;}}
+.emp{text-align:center;padding:36px 20px;color:rgba(245,240,232,.22);font-size:13px;line-height:1.9;}
+.emp .ic{font-size:40px;margin-bottom:10px;opacity:.35;}
+.ply{position:fixed;bottom:0;left:0;right:0;background:rgba(6,6,6,.98);border-top:1.5px solid rgba(204,0,0,.45);padding:0 16px 22px;z-index:200;}
+.nps{display:flex;align-items:center;gap:10px;padding:10px 0 8px;border-bottom:1px solid rgba(255,255,255,.05);margin-bottom:8px;cursor:pointer;}
+.npth{width:46px;height:46px;border-radius:8px;background:var(--g2);flex-shrink:0;overflow:hidden;position:relative;}
+.npth img{width:100%;height:100%;object-fit:cover;display:block;}
+.npni{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
+.npi{flex:1;min-width:0;}
+.nptl{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.npch{font-size:11px;color:rgba(245,240,232,.38);margin-top:2px;}
+.hb{background:none;border:none;cursor:pointer;font-size:20px;color:rgba(245,240,232,.3);padding:5px;}
+.hb.on{color:var(--r);}
+.mpb{background:none;border:none;cursor:pointer;font-size:26px;color:var(--w);padding:5px;}
+.pg{width:100%;height:4px;background:rgba(255,255,255,.1);border-radius:2px;cursor:pointer;margin-bottom:4px;}
+.pf{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--dr),var(--r));position:relative;transition:width .5s linear;}
+.pf::after{content:'';position:absolute;right:-5px;top:-4px;width:12px;height:12px;border-radius:50%;background:var(--r);}
+.tl{display:flex;justify-content:space-between;font-size:10px;color:rgba(245,240,232,.28);margin-bottom:6px;}
+.cts{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.cb{background:none;border:none;cursor:pointer;color:rgba(245,240,232,.5);font-size:20px;padding:8px;}
+.cb.on{color:var(--r);}
+.pb{width:52px;height:52px;border-radius:50%;background:var(--r);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;box-shadow:0 0 24px rgba(204,0,0,.5);}
+.pb:active{background:var(--dr);}
+.vr{display:flex;align-items:center;gap:8px;}
+.vi{font-size:14px;color:rgba(245,240,232,.3);}
+.vs{flex:1;-webkit-appearance:none;height:3px;background:rgba(255,255,255,.12);border-radius:2px;cursor:pointer;outline:none;}
+.vs::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--r);}
+.ntf{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:rgba(16,16,16,.97);border:1px solid rgba(204,0,0,.5);border-radius:10px;padding:10px 18px;font-size:12px;color:var(--w);z-index:999;opacity:0;pointer-events:none;transition:opacity .3s;max-width:85vw;text-align:center;}
+.ntf.on{opacity:1;}
+.full{position:fixed;inset:0;z-index:500;background:#040404;display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px 24px;}
+.full.on{display:flex;}
+.bk{position:absolute;top:16px;left:16px;background:none;border:none;color:var(--w);font-size:28px;cursor:pointer;padding:8px;}
+.fth{width:min(260px,70vw);height:min(260px,70vw);border-radius:18px;background:var(--g2);overflow:hidden;margin-bottom:24px;box-shadow:0 20px 60px rgba(204,0,0,.45);position:relative;flex-shrink:0;}
+.fth img{width:100%;height:100%;object-fit:cover;display:block;}
+.fno{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
+.ftt{font-family:'Cinzel',serif;font-size:17px;font-weight:700;text-align:center;margin-bottom:4px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fch{font-size:12px;color:rgba(245,240,232,.4);text-align:center;margin-bottom:22px;}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div id="ntf" class="ntf"></div>
+<div id="ytc"></div>
+
+<!-- SPLASH: shown once, tap unlocks audio for entire session -->
+<div id="splash">
+  <svg width="90" height="90" viewBox="0 0 46 46">
+    <rect width="46" height="46" rx="10" fill="#CC0000"/>
+    <path d="M23 5.5L19 12L13 10L16 16L9 17.5L15 21.5L11 28L18 25L16 32L20.5 29L20.5 38.5L23 35.5L25.5 38.5L25.5 29L30 32L28 25L35 28L31 21.5L37 17.5L30 16L33 10L27 12Z" fill="#000" opacity=".87"/>
+    <circle cx="23" cy="6.5" r="3" fill="#000" opacity=".87"/>
+    <g fill="#D4AF37"><rect x="13.5" y="26" width="2.3" height="7.5" rx=".6"/><ellipse cx="12.5" cy="33.8" rx="2.8" ry="1.8"/><rect x="15.8" y="20.5" width="2.3" height="6.5" rx=".6"/><ellipse cx="14.8" cy="27.2" rx="2.8" ry="1.8"/><rect x="15.8" y="20.5" width="6" height="1.4" rx=".6"/></g>
+  </svg>
+  <div style="font-family:'Cinzel',serif;font-size:22px;font-weight:900;letter-spacing:3px;color:#F5F0E8;">SHQIPËRIA MUSIC</div>
+  <div style="font-size:13px;color:rgba(245,240,232,.45);text-align:center;line-height:1.8;">Muzikë shqipe 24/7<br>Nonstop • Android Auto</div>
+  <button id="splashBtn" onclick="startSession()">&#9654;&nbsp; HAPI MUZIKËN</button>
+</div>
+
+<!-- FULL PLAYER -->
+<div id="full" class="full">
+  <button class="bk" onclick="cFull()">&#8592;</button>
+  <div class="fth">
+    <img id="fimg" src="" alt="" onerror="this.style.opacity=0;document.getElementById('fno').style.display='flex'">
+    <div class="fno" id="fno" style="display:none"><svg width="60" height="60" viewBox="0 0 24 24" fill="none"><path d="M9 18V5l12-2v13" stroke="#D4AF37" stroke-width="1.5" stroke-linecap="round"/><circle cx="6" cy="18" r="3" stroke="#D4AF37" stroke-width="1.5"/><circle cx="18" cy="16" r="3" stroke="#D4AF37" stroke-width="1.5"/></svg></div>
+  </div>
+  <div class="ftt" id="ftt">—</div>
+  <div class="fch" id="fch">—</div>
+  <div style="width:100%;max-width:340px;">
+    <div class="pg" onclick="seek(event,this)"><div class="pf" id="fpf" style="width:0%"></div></div>
+    <div class="tl"><span id="fc">0:00</span><span id="fd">0:00</span></div>
+    <div class="cts" style="margin-top:8px;">
+      <button class="cb" id="fsh" onclick="togSh()">&#8645;</button>
+      <button class="cb" onclick="prev()">&#9664;&#9664;</button>
+      <button class="pb" id="fpb" onclick="togPl()">&#9654;</button>
+      <button class="cb" onclick="next()">&#9654;&#9654;</button>
+      <button class="cb" id="frp" onclick="togRp()">&#8635;</button>
+    </div>
+    <div class="vr" style="margin-top:12px;">
+      <span class="vi">&#128264;</span>
+      <input type="range" class="vs" id="fvs" min="0" max="100" value="90" oninput="setVol(this.value)">
+      <span class="vi">&#128266;</span>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+  <div class="hdr">
+    <svg class="lsvg" viewBox="0 0 46 46">
+      <rect width="46" height="46" rx="10" fill="#CC0000"/>
+      <path d="M23 5.5L19 12L13 10L16 16L9 17.5L15 21.5L11 28L18 25L16 32L20.5 29L20.5 38.5L23 35.5L25.5 38.5L25.5 29L30 32L28 25L35 28L31 21.5L37 17.5L30 16L33 10L27 12Z" fill="#000" opacity=".87"/>
+      <circle cx="23" cy="6.5" r="3" fill="#000" opacity=".87"/>
+      <g fill="#D4AF37"><rect x="13.5" y="26" width="2.3" height="7.5" rx=".6"/><ellipse cx="12.5" cy="33.8" rx="2.8" ry="1.8"/><rect x="15.8" y="20.5" width="2.3" height="6.5" rx=".6"/><ellipse cx="14.8" cy="27.2" rx="2.8" ry="1.8"/><rect x="15.8" y="20.5" width="6" height="1.4" rx=".6"/></g>
+      <g fill="#F5F0E8" opacity=".55"><rect x="28" y="24" width="2" height="6.5" rx=".5"/><ellipse cx="27" cy="30.7" rx="2.4" ry="1.5"/><rect x="30" y="19.5" width="2" height="5.8" rx=".5"/><ellipse cx="29" cy="25.5" rx="2.4" ry="1.5"/><rect x="30" y="19.5" width="4.8" height="1.2" rx=".5"/></g>
+    </svg>
+    <div class="ltx"><div class="lti">SHQIPËRIA</div><div class="lsu">&#9835; MUZIKA JOTE &#9835;</div></div>
+    <div class="eq off" id="heq"><span></span><span></span><span></span><span></span><span></span></div>
+  </div>
+  <div class="sw">
+    <div class="sb">
+      <input type="text" id="si" placeholder="Kërko: Stresi, Noizy, Dafi, Era..." onkeydown="if(event.key==='Enter')doSearch()">
+      <button class="sgo" onclick="doSearch()">&#9654;</button>
+    </div>
+  </div>
+  <div id="apiSt" class="status"></div>
+  <div class="tabs">
+    <button class="tab on" onclick="swTab('s')">Kërkim</button>
+    <button class="tab" onclick="swTab('h')">&#128293; Hitet</button>
+    <button class="tab" onclick="swTab('n')">&#127381; Të Reja</button>
+    <button class="tab" onclick="swTab('l')">&#9829;</button>
+  </div>
+  <div id="ts" class="tc on"><div class="stl">Rezultatet</div><div id="rl"><div class="emp"><div class="ic">&#9835;</div>Kërko muzikën tënde shqiptare<br><span style="font-size:11px;opacity:.4">YouTube • Nonstop • Android Auto</span></div></div></div>
+  <div id="th" class="tc"><div class="stl">Top Hite</div><div id="hl"></div></div>
+  <div id="tn" class="tc"><div class="stl">Këngët e Reja</div><div id="nl"></div></div>
+  <div id="tl" class="tc"><div class="stl">Të preferuara</div><div id="ll"><div class="emp">Nuk ke ende këngë &#9825;</div></div></div>
+</div>
+
+<div class="ply">
+  <div class="nps" onclick="oFull()">
+    <div class="npth">
+      <img id="npim" src="" alt="" onerror="this.style.opacity=0;document.getElementById('npni').style.display='flex'">
+      <div class="npni" id="npni" style="display:flex"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M9 18V5l12-2v13" stroke="#D4AF37" stroke-width="1.5" stroke-linecap="round"/><circle cx="6" cy="18" r="3" stroke="#D4AF37" stroke-width="1.5"/><circle cx="18" cy="16" r="3" stroke="#D4AF37" stroke-width="1.5"/></svg></div>
+    </div>
+    <div class="npi"><div class="nptl" id="nptl">Asnjë këngë aktive</div><div class="npch" id="npch">Kërko muzikë &#8593;</div></div>
+    <button class="hb" id="hbtn" onclick="event.stopPropagation();togLk()">&#9825;</button>
+    <button class="mpb" id="mpb" onclick="event.stopPropagation();togPl()">&#9654;</button>
+  </div>
+  <div class="pg" onclick="seek(event,this)"><div class="pf" id="mpf" style="width:0%"></div></div>
+  <div class="tl"><span id="mct">0:00</span><span id="mdt">0:00</span></div>
+  <div class="cts">
+    <button class="cb" id="shb" onclick="togSh()">&#8645;</button>
+    <button class="cb" onclick="prev()">&#9664;&#9664;</button>
+    <button class="pb" id="pb" onclick="togPl()">&#9654;</button>
+    <button class="cb" onclick="next()">&#9654;&#9654;</button>
+    <button class="cb" id="rpb" onclick="togRp()">&#8635;</button>
+  </div>
+  <div class="vr">
+    <span class="vi">&#128264;</span>
+    <input type="range" class="vs" id="mvs" min="0" max="100" value="90" oninput="setVol(this.value)">
+    <span class="vi">&#128266;</span>
+  </div>
+</div>
+
+<script>
+var KEY='AIzaSyB7nq_h966bcTlt0RLRhaaaIV6siCM6pyI';
+var tracks=[],cur=-1,playing=false,sh=false,rp=false,vol=90;
+var tmr=null,errCnt=0,curList='s';
+var ytp=null,ytRdy=false,pendingId=null,sessionStarted=false;
+
+// Load YT API immediately (no autoplay yet, just load script)
+window.onYouTubeIframeAPIReady=function(){
+  // API loaded - wait for startSession() before creating player
+  if(sessionStarted) doCreatePlayer();
+};
+(function(){
+  var s=document.createElement('script');
+  s.src='https://www.youtube.com/iframe_api';
+  document.head.appendChild(s);
+})();
+
+// Called from HAPI MUZIKËN button - THIS is the user gesture
+function startSession(){
+  sessionStarted=true;
+  document.getElementById('splash').classList.add('hide');
+  // Create player immediately inside this onclick = autoplay unlocked
+  if(window.YT && window.YT.Player){
+    doCreatePlayer();
+  }
+  // else: onYouTubeIframeAPIReady will call doCreatePlayer() when API loads
+}
+
+function doCreatePlayer(){
+  ytp=new YT.Player('ytc',{
+    width:'320', height:'180',
+    playerVars:{
+      autoplay:0,
+      controls:0,
+      playsinline:1,
+      rel:0,
+      enablejsapi:1,
+      origin:location.origin
+    },
+    events:{
+      onReady:function(){
+        ytRdy=true;
+        ytp.setVolume(vol);
+        showSt('ok','&#10003; Gati! Kërko këngën tënde.');
+        if(pendingId){
+          var id=pendingId; pendingId=null;
+          ytp.loadVideoById(id);
+        }
+      },
+      onStateChange:function(e){
+        var S=YT.PlayerState;
+        if(e.data===S.PLAYING){
+          playing=true; errCnt=0; updB(); startTmr();
+          document.getElementById('heq').classList.remove('off');
+          msSetup(); showSt('');
+        } else if(e.data===S.PAUSED){
+          playing=false; updB(); stopTmr();
+          document.getElementById('heq').classList.add('off');
+        } else if(e.data===S.ENDED){
+          next();
+        } else if(e.data===-1){
+          // unstarted after loadVideoById → play
+          ytp.playVideo();
+        }
+      },
+      onError:function(){
+        errCnt++;
+        ntf('Video nuk luhet — kaloj...');
+        if(errCnt<8) setTimeout(next,1000); else errCnt=0;
+      }
+    }
+  });
+}
+
+function playId(videoId){
+  if(!ytRdy||!ytp){
+    pendingId=videoId;
+    showSt('inf','&#9203; Po ngarkohet...');
+    return;
+  }
+  // loadVideoById triggers state -1 → onStateChange calls playVideo()
+  // Works because session was started from user gesture (startSession)
+  ytp.loadVideoById(videoId);
+}
+
+function play(i,src){
+  var list=src==='l'?JSON.parse(localStorage.getItem('sq_lk')||'[]')
+          :src==='s'?tracks:(window[src]||tracks);
+  tracks=list; curList=src; cur=i;
+  var t=tracks[i]; if(!t) return;
+  updNP(t);
+  document.querySelectorAll('.trk').forEach(function(el,j){el.classList.toggle('on',j===i);});
+  svRc(t);
+  ntf('&#9654; '+t.title.substring(0,50));
+  playId(t.id);
+}
+
+function updNP(t){
+  document.getElementById('nptl').textContent=t.title;
+  document.getElementById('ftt').textContent=t.title;
+  document.getElementById('npch').textContent=t.channel;
+  document.getElementById('fch').textContent=t.channel;
+  setThumb('npim','npni',t.thumb);
+  setThumb('fimg','fno',t.thumb);
+  updB(); updHrt();
+}
+function setThumb(iId,fId,s){
+  var img=document.getElementById(iId),fb=document.getElementById(fId);
+  if(!s){img.style.opacity=0;fb.style.display='flex';return;}
+  fb.style.display='none'; img.style.opacity=1;
+  img.onerror=function(){img.style.opacity=0;fb.style.display='flex';};
+  img.src=s;
+}
+function updB(){
+  var ic=playing?'&#9646;&#9646;':'&#9654;';
+  ['pb','mpb','fpb'].forEach(function(id){document.getElementById(id).innerHTML=ic;});
+}
+function togPl(){
+  if(cur===-1){ntf('Zgjidh një këngë');return;}
+  if(!ytRdy||!ytp)return;
+  if(playing) ytp.pauseVideo(); else ytp.playVideo();
+}
+function prev(){if(!tracks.length)return;var i=sh?rnd():cur-1;if(i<0)i=tracks.length-1;play(i,curList);}
+function next(){if(!tracks.length)return;var i=rp?cur:sh?rnd():cur+1;if(i>=tracks.length)i=0;play(i,curList);}
+function rnd(){return Math.floor(Math.random()*tracks.length);}
+function togSh(){sh=!sh;['shb','fsh'].forEach(function(id){document.getElementById(id).classList.toggle('on',sh);});ntf(sh?'Shuffle ON':'Shuffle OFF');}
+function togRp(){rp=!rp;['rpb','frp'].forEach(function(id){document.getElementById(id).classList.toggle('on',rp);});ntf(rp?'Repeat ON':'Repeat OFF');}
+function setVol(v){vol=parseInt(v);['mvs','fvs'].forEach(function(id){document.getElementById(id).value=v;});if(ytRdy&&ytp)ytp.setVolume(vol);}
+function startTmr(){
+  stopTmr();
+  tmr=setInterval(function(){
+    if(!ytRdy||!ytp)return;
+    try{
+      var p=ytp.getCurrentTime()||0,d=ytp.getDuration()||0,pc=d>0?(p/d)*100:0;
+      ['mpf','fpf'].forEach(function(id){document.getElementById(id).style.width=pc+'%';});
+      ['mct','fc'].forEach(function(id){document.getElementById(id).textContent=fmt(p);});
+      ['mdt','fd'].forEach(function(id){document.getElementById(id).textContent=fmt(d);});
+      try{if('mediaSession' in navigator&&navigator.mediaSession.setPositionState&&d>0)
+        navigator.mediaSession.setPositionState({duration:d,playbackRate:1,position:p});}catch(x){}
+    }catch(x){}
+  },1000);
+}
+function stopTmr(){if(tmr){clearInterval(tmr);tmr=null;}}
+function seek(e,bar){
+  if(!ytRdy||!ytp)return;
+  try{var d=ytp.getDuration()||0;if(!d)return;var r=bar.getBoundingClientRect();ytp.seekTo(Math.max(0,Math.min(1,(e.clientX-r.left)/r.width))*d,true);}catch(x){}
+}
+async function ytFetch(ep,params){
+  var url='https://www.googleapis.com/youtube/v3/'+ep+'?part=snippet&key='+KEY;
+  Object.keys(params).forEach(function(k){url+='&'+k+'='+encodeURIComponent(params[k]);});
+  var ctrl=new AbortController(),tid=setTimeout(function(){ctrl.abort();},10000);
+  try{var r=await fetch(url,{signal:ctrl.signal});clearTimeout(tid);var d=await r.json();if(d.error)throw new Error(d.error.message);return d;}
+  catch(e){clearTimeout(tid);throw e;}
+}
+async function getDurs(ids){
+  try{var r=await fetch('https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id='+ids.join(',')+'&key='+KEY);var d=await r.json();var m={};(d.items||[]).forEach(function(v){m[v.id]=pDur(v.contentDetails.duration);});return m;}catch(x){return{};}
+}
+function i2t(items){
+  return(items||[]).map(function(it){
+    var id=it.id.videoId||it.id,sn=it.snippet||{},th=sn.thumbnails||{};
+    var thumb=(th.high||th.medium||th.default||{}).url||('https://i.ytimg.com/vi/'+id+'/hqdefault.jpg');
+    return{id:id,title:dH(sn.title||''),channel:sn.channelTitle||'',thumb:thumb,duration:'—'};
+  });
+}
+async function doSearch(){
+  var q=document.getElementById('si').value.trim();if(!q)return;
+  document.getElementById('rl').innerHTML='<div class="dots"><i></i><i></i><i></i></div>';
+  swTab('s');showSt('inf','&#9203; Duke kërkuar...');
+  try{
+    var d=await ytFetch('search',{q:q+' shqip',type:'video',maxResults:20});
+    var list=i2t(d.items);
+    var durs=await getDurs(list.map(function(t){return t.id;}));
+    list.forEach(function(t){if(durs[t.id])t.duration=durs[t.id];});
+    tracks=list;curList='s';
+    renderList(tracks,document.getElementById('rl'),'s');
+    showSt('ok','&#10003; '+tracks.length+' këngë — prek për të dëgjuar!');
+  }catch(e){showSt('err','&#10060; '+e.message);document.getElementById('rl').innerHTML='<div class="emp"><div class="ic">&#9888;</div>'+esc(e.message)+'</div>';}
+}
+async function loadPreset(q,elId,lKey){
+  var el=document.getElementById(elId);el.innerHTML='<div class="dots"><i></i><i></i><i></i></div>';
+  try{
+    var d=await ytFetch('search',{q:q,type:'video',maxResults:25});
+    var list=i2t(d.items);
+    var durs=await getDurs(list.map(function(t){return t.id;}));
+    list.forEach(function(t){if(durs[t.id])t.duration=durs[t.id];});
+    window[lKey]=list;renderList(list,el,lKey);
+  }catch(e){el.innerHTML='<div class="emp"><div class="ic">&#9888;</div>'+esc(e.message)+'</div>';}
+}
+function renderList(arr,el,src){
+  if(!arr.length){el.innerHTML='<div class="emp">Asnjë rezultat</div>';return;}
+  el.innerHTML=arr.map(function(t,i){
+    var on=(cur===i&&curList===src)?' on':'';
+    return'<div class="trk'+on+'" onclick="play('+i+',\''+src+'\')">'
+      +'<div class="tth"><img src="'+t.thumb+'" alt="" loading="lazy" onerror="this.style.opacity=0;this.nextSibling.style.display=\'flex\'">'
+      +'<div class="tno" style="display:none"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 18V5l12-2v13" stroke="#D4AF37" stroke-width="1.5" stroke-linecap="round"/><circle cx="6" cy="18" r="3" stroke="#D4AF37" stroke-width="1.5"/><circle cx="18" cy="16" r="3" stroke="#D4AF37" stroke-width="1.5"/></svg></div>'
+      +'<div class="pov">&#9654;</div></div>'
+      +'<div class="ti"><div class="tn">'+esc(t.title)+'</div><div class="tc2">'+esc(t.channel)+'</div></div>'
+      +'<span class="td">'+t.duration+'</span></div>';
+  }).join('');
+}
+function togLk(){
+  if(cur===-1)return;var t=tracks[cur];
+  var lk=JSON.parse(localStorage.getItem('sq_lk')||'[]');
+  var ex=lk.findIndex(function(x){return x.id===t.id;});
+  if(ex!==-1){lk.splice(ex,1);ntf('Hequr');}else{lk.unshift(t);ntf('&#9829; Shtuar!');}
+  localStorage.setItem('sq_lk',JSON.stringify(lk));updHrt();
+}
+function updHrt(){
+  if(cur===-1)return;
+  var lk=JSON.parse(localStorage.getItem('sq_lk')||'[]');
+  var ok=lk.some(function(x){return x.id===(tracks[cur]||{}).id;});
+  document.getElementById('hbtn').classList.toggle('on',ok);
+  document.getElementById('hbtn').innerHTML=ok?'&#9829;':'&#9825;';
+}
+function renderLk(){
+  var lk=JSON.parse(localStorage.getItem('sq_lk')||'[]');
+  var el=document.getElementById('ll');
+  if(!lk.length){el.innerHTML='<div class="emp">Nuk ke ende këngë &#9825;</div>';return;}
+  renderList(lk,el,'l');
+}
+function svRc(t){
+  var rc=JSON.parse(localStorage.getItem('sq_rc')||'[]');
+  rc=rc.filter(function(x){return x.id!==t.id;});rc.unshift(t);
+  if(rc.length>30)rc.pop();localStorage.setItem('sq_rc',JSON.stringify(rc));
+}
+function swTab(n){
+  ['s','h','n','l'].forEach(function(x,i){
+    document.getElementById('t'+x).classList.toggle('on',x===n);
+    document.querySelectorAll('.tab')[i].classList.toggle('on',x===n);
+  });
+  if(n==='h'&&!window.hList)loadPreset('muzik shqip top hite 2024 2025','hl','hList');
+  if(n==='n'&&!window.nList)loadPreset('kenget e reja shqip 2025 2026','nl','nList');
+  if(n==='l')renderLk();
+}
+function oFull(){document.getElementById('full').classList.add('on');}
+function cFull(){document.getElementById('full').classList.remove('on');}
+function msSetup(){
+  if(!('mediaSession' in navigator))return;
+  var t=tracks[cur];if(!t)return;
+  navigator.mediaSession.metadata=new MediaMetadata({title:t.title,artist:t.channel,album:'Shqipëria Music',artwork:[{src:t.thumb,sizes:'480x360',type:'image/jpeg'}]});
+  navigator.mediaSession.setActionHandler('play',function(){if(ytp)ytp.playVideo();});
+  navigator.mediaSession.setActionHandler('pause',function(){if(ytp)ytp.pauseVideo();});
+  navigator.mediaSession.setActionHandler('nexttrack',next);
+  navigator.mediaSession.setActionHandler('previoustrack',prev);
+  try{navigator.mediaSession.setActionHandler('seekto',function(d){if(ytp)ytp.seekTo(d.seekTime,true);});}catch(x){}
+  navigator.mediaSession.playbackState='playing';
+}
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible'&&playing&&ytRdy&&ytp)try{ytp.playVideo();}catch(x){}
+});
+function showSt(t,m){var el=document.getElementById('apiSt');el.className='status'+(t?' '+t:'');el.innerHTML=m||'';}
+function ntf(m){var el=document.getElementById('ntf');el.innerHTML=m;el.classList.add('on');clearTimeout(el._t);el._t=setTimeout(function(){el.classList.remove('on');},2800);}
+function fmt(s){if(!s||isNaN(s))return'0:00';s=Math.floor(s);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
+function pDur(iso){var m=iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);if(!m)return'—';var h=+(m[1]||0),mn=+(m[2]||0),s=+(m[3]||0);return h>0?h+':'+String(mn).padStart(2,'0')+':'+String(s).padStart(2,'0'):mn+':'+String(s).padStart(2,'0');}
+function dH(s){var t=document.createElement('textarea');t.innerHTML=s;return t.value;}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+async function reqWL(){try{if('wakeLock' in navigator)await navigator.wakeLock.request('screen');}catch(x){}}
+reqWL();
+</script>
+</body>
+</html>
