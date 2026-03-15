@@ -4,8 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#080808">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#CC0000">
 <title>Shqipëria Music</title>
+<link rel="manifest" href="data:application/json,{%22name%22:%22Shqip%C3%ABria%20Music%22,%22short_name%22:%22Shqip%C3%ABria%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23080808%22,%22theme_color%22:%22%23CC0000%22}">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Raleway:wght@400;600&display=swap');
 :root{--r:#CC0000;--dr:#8B0000;--g:#D4AF37;--w:#F5F0E8;--bk:#080808;--g1:#181818;--g2:#242424;}
@@ -14,16 +17,7 @@ html,body{height:100%;overflow-x:hidden;}
 body{background:var(--bk);color:var(--w);font-family:'Raleway',sans-serif;}
 .bg{position:fixed;inset:0;background:radial-gradient(ellipse at 10% 60%,rgba(139,0,0,.2) 0%,transparent 50%);pointer-events:none;z-index:0;}
 .app{position:relative;z-index:1;max-width:480px;margin:0 auto;padding-bottom:240px;}
-
-/* YT player - real visible size required for mobile autoplay */
-#ytc{position:fixed;bottom:0;right:0;width:1px;height:1px;overflow:hidden;opacity:0.001;pointer-events:none;z-index:1;}
-#ytc iframe{width:320px!important;height:180px!important;}
-
-/* SPLASH shown only until first tap */
-#splash{position:fixed;inset:0;z-index:9000;background:var(--bk);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:32px;}
-#splash.hide{display:none;}
-#splashBtn{width:100%;max-width:320px;padding:18px;background:var(--r);border:none;border-radius:14px;font-family:'Cinzel',serif;font-size:16px;letter-spacing:2px;color:#fff;cursor:pointer;box-shadow:0 0 40px rgba(204,0,0,.6);}
-
+#ytc{position:fixed;width:1px;height:1px;overflow:hidden;bottom:0;left:0;z-index:-1;}
 .hdr{padding:12px 16px;border-bottom:1px solid rgba(204,0,0,.35);display:flex;align-items:center;gap:12px;background:rgba(6,6,6,.98);position:sticky;top:0;z-index:100;}
 .lsvg{width:46px;height:46px;flex-shrink:0;}
 .ltx{flex:1;}
@@ -88,7 +82,7 @@ body{background:var(--bk);color:var(--w);font-family:'Raleway',sans-serif;}
 .pf::after{content:'';position:absolute;right:-5px;top:-4px;width:12px;height:12px;border-radius:50%;background:var(--r);}
 .tl{display:flex;justify-content:space-between;font-size:10px;color:rgba(245,240,232,.28);margin-bottom:6px;}
 .cts{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
-.cb{background:none;border:none;cursor:pointer;color:rgba(245,240,232,.5);font-size:20px;padding:8px;}
+.cb{background:none;border:none;cursor:pointer;color:rgba(245,240,232,.5);font-size:20px;padding:8px;border-radius:50%;}
 .cb.on{color:var(--r);}
 .pb{width:52px;height:52px;border-radius:50%;background:var(--r);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;box-shadow:0 0 24px rgba(204,0,0,.5);}
 .pb:active{background:var(--dr);}
@@ -96,7 +90,7 @@ body{background:var(--bk);color:var(--w);font-family:'Raleway',sans-serif;}
 .vi{font-size:14px;color:rgba(245,240,232,.3);}
 .vs{flex:1;-webkit-appearance:none;height:3px;background:rgba(255,255,255,.12);border-radius:2px;cursor:pointer;outline:none;}
 .vs::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--r);}
-.ntf{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:rgba(16,16,16,.97);border:1px solid rgba(204,0,0,.5);border-radius:10px;padding:10px 18px;font-size:12px;color:var(--w);z-index:999;opacity:0;pointer-events:none;transition:opacity .3s;max-width:85vw;text-align:center;}
+.ntf{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:rgba(16,16,16,.97);border:1px solid rgba(204,0,0,.5);border-radius:10px;padding:10px 18px;font-size:12px;color:var(--w);z-index:9999;opacity:0;pointer-events:none;transition:opacity .3s;max-width:85vw;text-align:center;}
 .ntf.on{opacity:1;}
 .full{position:fixed;inset:0;z-index:500;background:#040404;display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px 24px;}
 .full.on{display:flex;}
@@ -113,20 +107,6 @@ body{background:var(--bk);color:var(--w);font-family:'Raleway',sans-serif;}
 <div id="ntf" class="ntf"></div>
 <div id="ytc"></div>
 
-<!-- SPLASH: shown once, tap unlocks audio for entire session -->
-<div id="splash">
-  <svg width="90" height="90" viewBox="0 0 46 46">
-    <rect width="46" height="46" rx="10" fill="#CC0000"/>
-    <path d="M23 5.5L19 12L13 10L16 16L9 17.5L15 21.5L11 28L18 25L16 32L20.5 29L20.5 38.5L23 35.5L25.5 38.5L25.5 29L30 32L28 25L35 28L31 21.5L37 17.5L30 16L33 10L27 12Z" fill="#000" opacity=".87"/>
-    <circle cx="23" cy="6.5" r="3" fill="#000" opacity=".87"/>
-    <g fill="#D4AF37"><rect x="13.5" y="26" width="2.3" height="7.5" rx=".6"/><ellipse cx="12.5" cy="33.8" rx="2.8" ry="1.8"/><rect x="15.8" y="20.5" width="2.3" height="6.5" rx=".6"/><ellipse cx="14.8" cy="27.2" rx="2.8" ry="1.8"/><rect x="15.8" y="20.5" width="6" height="1.4" rx=".6"/></g>
-  </svg>
-  <div style="font-family:'Cinzel',serif;font-size:22px;font-weight:900;letter-spacing:3px;color:#F5F0E8;">SHQIPËRIA MUSIC</div>
-  <div style="font-size:13px;color:rgba(245,240,232,.45);text-align:center;line-height:1.8;">Muzikë shqipe 24/7<br>Nonstop • Android Auto</div>
-  <button id="splashBtn" onclick="startSession()">&#9654;&nbsp; HAPI MUZIKËN</button>
-</div>
-
-<!-- FULL PLAYER -->
 <div id="full" class="full">
   <button class="bk" onclick="cFull()">&#8592;</button>
   <div class="fth">
@@ -155,13 +135,7 @@ body{background:var(--bk);color:var(--w);font-family:'Raleway',sans-serif;}
 
 <div class="app">
   <div class="hdr">
-    <svg class="lsvg" viewBox="0 0 46 46">
-      <rect width="46" height="46" rx="10" fill="#CC0000"/>
-      <path d="M23 5.5L19 12L13 10L16 16L9 17.5L15 21.5L11 28L18 25L16 32L20.5 29L20.5 38.5L23 35.5L25.5 38.5L25.5 29L30 32L28 25L35 28L31 21.5L37 17.5L30 16L33 10L27 12Z" fill="#000" opacity=".87"/>
-      <circle cx="23" cy="6.5" r="3" fill="#000" opacity=".87"/>
-      <g fill="#D4AF37"><rect x="13.5" y="26" width="2.3" height="7.5" rx=".6"/><ellipse cx="12.5" cy="33.8" rx="2.8" ry="1.8"/><rect x="15.8" y="20.5" width="2.3" height="6.5" rx=".6"/><ellipse cx="14.8" cy="27.2" rx="2.8" ry="1.8"/><rect x="15.8" y="20.5" width="6" height="1.4" rx=".6"/></g>
-      <g fill="#F5F0E8" opacity=".55"><rect x="28" y="24" width="2" height="6.5" rx=".5"/><ellipse cx="27" cy="30.7" rx="2.4" ry="1.5"/><rect x="30" y="19.5" width="2" height="5.8" rx=".5"/><ellipse cx="29" cy="25.5" rx="2.4" ry="1.5"/><rect x="30" y="19.5" width="4.8" height="1.2" rx=".5"/></g>
-    </svg>
+    <svg class="lsvg" viewBox="0 0 46 46"><rect width="46" height="46" rx="10" fill="#CC0000"/><path d="M23 5.5L19 12L13 10L16 16L9 17.5L15 21.5L11 28L18 25L16 32L20.5 29L20.5 38.5L23 35.5L25.5 38.5L25.5 29L30 32L28 25L35 28L31 21.5L37 17.5L30 16L33 10L27 12Z" fill="#000" opacity=".87"/><circle cx="23" cy="6.5" r="3" fill="#000" opacity=".87"/><g fill="#D4AF37"><rect x="13.5" y="26" width="2.3" height="7.5" rx=".6"/><ellipse cx="12.5" cy="33.8" rx="2.8" ry="1.8"/><rect x="15.8" y="20.5" width="2.3" height="6.5" rx=".6"/><ellipse cx="14.8" cy="27.2" rx="2.8" ry="1.8"/><rect x="15.8" y="20.5" width="6" height="1.4" rx=".6"/></g><g fill="#F5F0E8" opacity=".55"><rect x="28" y="24" width="2" height="6.5" rx=".5"/><ellipse cx="27" cy="30.7" rx="2.4" ry="1.5"/><rect x="30" y="19.5" width="2" height="5.8" rx=".5"/><ellipse cx="29" cy="25.5" rx="2.4" ry="1.5"/><rect x="30" y="19.5" width="4.8" height="1.2" rx=".5"/></g></svg>
     <div class="ltx"><div class="lti">SHQIPËRIA</div><div class="lsu">&#9835; MUZIKA JOTE &#9835;</div></div>
     <div class="eq off" id="heq"><span></span><span></span><span></span><span></span><span></span></div>
   </div>
@@ -214,97 +188,65 @@ body{background:var(--bk);color:var(--w);font-family:'Raleway',sans-serif;}
 var KEY='AIzaSyB7nq_h966bcTlt0RLRhaaaIV6siCM6pyI';
 var tracks=[],cur=-1,playing=false,sh=false,rp=false,vol=90;
 var tmr=null,errCnt=0,curList='s';
-var ytp=null,ytRdy=false,pendingId=null,sessionStarted=false;
+var ytp=null,ytRdy=false,queue=[];
 
-// Load YT API immediately (no autoplay yet, just load script)
 window.onYouTubeIframeAPIReady=function(){
-  // API loaded - wait for startSession() before creating player
-  if(sessionStarted) doCreatePlayer();
-};
-(function(){
-  var s=document.createElement('script');
-  s.src='https://www.youtube.com/iframe_api';
-  document.head.appendChild(s);
-})();
-
-// Called from HAPI MUZIKËN button - THIS is the user gesture
-function startSession(){
-  sessionStarted=true;
-  document.getElementById('splash').classList.add('hide');
-  // Create player immediately inside this onclick = autoplay unlocked
-  if(window.YT && window.YT.Player){
-    doCreatePlayer();
-  }
-  // else: onYouTubeIframeAPIReady will call doCreatePlayer() when API loads
-}
-
-function doCreatePlayer(){
   ytp=new YT.Player('ytc',{
-    width:'320', height:'180',
-    playerVars:{
-      autoplay:0,
-      controls:0,
-      playsinline:1,
-      rel:0,
-      enablejsapi:1,
-      origin:location.origin
-    },
+    width:'2',height:'2',
+    playerVars:{autoplay:0,controls:0,playsinline:1,rel:0,enablejsapi:1,origin:location.origin},
     events:{
       onReady:function(){
         ytRdy=true;
         ytp.setVolume(vol);
         showSt('ok','&#10003; Gati! Kërko këngën tënde.');
-        if(pendingId){
-          var id=pendingId; pendingId=null;
-          ytp.loadVideoById(id);
-        }
+        if(queue.length){var v=queue.shift();doPlay(v);}
       },
       onStateChange:function(e){
         var S=YT.PlayerState;
         if(e.data===S.PLAYING){
-          playing=true; errCnt=0; updB(); startTmr();
+          playing=true;errCnt=0;updB();startTmr();
           document.getElementById('heq').classList.remove('off');
-          msSetup(); showSt('');
-        } else if(e.data===S.PAUSED){
-          playing=false; updB(); stopTmr();
+          msSetup();showSt('');
+        }else if(e.data===S.PAUSED){
+          playing=false;updB();stopTmr();
           document.getElementById('heq').classList.add('off');
-        } else if(e.data===S.ENDED){
+        }else if(e.data===S.ENDED){
           next();
-        } else if(e.data===-1){
-          // unstarted after loadVideoById → play
-          ytp.playVideo();
+        }else if(e.data===-1){
+          try{ytp.playVideo();}catch(x){}
         }
       },
       onError:function(){
-        errCnt++;
-        ntf('Video nuk luhet — kaloj...');
-        if(errCnt<8) setTimeout(next,1000); else errCnt=0;
+        errCnt++;ntf('Video nuk luhet — kaloj...');
+        if(errCnt<8)setTimeout(next,1000);else errCnt=0;
       }
     }
   });
-}
+};
+(function(){var s=document.createElement('script');s.src='https://www.youtube.com/iframe_api';document.head.appendChild(s);})();
 
-function playId(videoId){
-  if(!ytRdy||!ytp){
-    pendingId=videoId;
-    showSt('inf','&#9203; Po ngarkohet...');
-    return;
-  }
-  // loadVideoById triggers state -1 → onStateChange calls playVideo()
-  // Works because session was started from user gesture (startSession)
-  ytp.loadVideoById(videoId);
+function doPlay(videoId){
+  if(!ytRdy||!ytp){queue=[videoId];return;}
+  ytp.loadVideoById({videoId:videoId});
+  var att=0,poll=setInterval(function(){
+    att++;
+    if(!ytp)return clearInterval(poll);
+    var st=ytp.getPlayerState();
+    if(st===1||st===3){clearInterval(poll);return;}
+    if(att>20){clearInterval(poll);return;}
+    try{ytp.playVideo();}catch(x){}
+  },500);
 }
 
 function play(i,src){
   var list=src==='l'?JSON.parse(localStorage.getItem('sq_lk')||'[]')
           :src==='s'?tracks:(window[src]||tracks);
-  tracks=list; curList=src; cur=i;
-  var t=tracks[i]; if(!t) return;
+  tracks=list;curList=src;cur=i;
+  var t=tracks[i];if(!t)return;
   updNP(t);
   document.querySelectorAll('.trk').forEach(function(el,j){el.classList.toggle('on',j===i);});
-  svRc(t);
-  ntf('&#9654; '+t.title.substring(0,50));
-  playId(t.id);
+  svRc(t);ntf('&#9654; '+t.title.substring(0,50));
+  doPlay(t.id);
 }
 
 function updNP(t){
@@ -314,12 +256,12 @@ function updNP(t){
   document.getElementById('fch').textContent=t.channel;
   setThumb('npim','npni',t.thumb);
   setThumb('fimg','fno',t.thumb);
-  updB(); updHrt();
+  updB();updHrt();
 }
 function setThumb(iId,fId,s){
   var img=document.getElementById(iId),fb=document.getElementById(fId);
   if(!s){img.style.opacity=0;fb.style.display='flex';return;}
-  fb.style.display='none'; img.style.opacity=1;
+  fb.style.display='none';img.style.opacity=1;
   img.onerror=function(){img.style.opacity=0;fb.style.display='flex';};
   img.src=s;
 }
@@ -330,7 +272,7 @@ function updB(){
 function togPl(){
   if(cur===-1){ntf('Zgjidh një këngë');return;}
   if(!ytRdy||!ytp)return;
-  if(playing) ytp.pauseVideo(); else ytp.playVideo();
+  if(playing)ytp.pauseVideo();else ytp.playVideo();
 }
 function prev(){if(!tracks.length)return;var i=sh?rnd():cur-1;if(i<0)i=tracks.length-1;play(i,curList);}
 function next(){if(!tracks.length)return;var i=rp?cur:sh?rnd():cur+1;if(i>=tracks.length)i=0;play(i,curList);}
@@ -365,7 +307,7 @@ async function ytFetch(ep,params){
   catch(e){clearTimeout(tid);throw e;}
 }
 async function getDurs(ids){
-  try{var r=await fetch('https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id='+ids.join(',')+'&key='+KEY);var d=await r.json();var m={};(d.items||[]).forEach(function(v){m[v.id]=pDur(v.contentDetails.duration);});return m;}catch(x){return{};}
+  try{var r=await fetch('https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id='+ids.join(',')+'&key='+KEY);var d=await r.json();var m={};(d.items||[]).forEach(function(v){m[v.id]=pDur(v.contentDetails.duration);});return m;}catch(x){return {};}
 }
 function i2t(items){
   return(items||[]).map(function(it){
@@ -392,8 +334,7 @@ async function loadPreset(q,elId,lKey){
   var el=document.getElementById(elId);el.innerHTML='<div class="dots"><i></i><i></i><i></i></div>';
   try{
     var d=await ytFetch('search',{q:q,type:'video',maxResults:25});
-    var list=i2t(d.items);
-    var durs=await getDurs(list.map(function(t){return t.id;}));
+    var list=i2t(d.items);var durs=await getDurs(list.map(function(t){return t.id;}));
     list.forEach(function(t){if(durs[t.id])t.duration=durs[t.id];});
     window[lKey]=list;renderList(list,el,lKey);
   }catch(e){el.innerHTML='<div class="emp"><div class="ic">&#9888;</div>'+esc(e.message)+'</div>';}
@@ -460,6 +401,9 @@ function msSetup(){
 document.addEventListener('visibilitychange',function(){
   if(document.visibilityState==='visible'&&playing&&ytRdy&&ytp)try{ytp.playVideo();}catch(x){}
 });
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('data:text/javascript,self.addEventListener("fetch",function(e){})').catch(function(){});
+}
 function showSt(t,m){var el=document.getElementById('apiSt');el.className='status'+(t?' '+t:'');el.innerHTML=m||'';}
 function ntf(m){var el=document.getElementById('ntf');el.innerHTML=m;el.classList.add('on');clearTimeout(el._t);el._t=setTimeout(function(){el.classList.remove('on');},2800);}
 function fmt(s){if(!s||isNaN(s))return'0:00';s=Math.floor(s);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
