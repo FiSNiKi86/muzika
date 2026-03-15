@@ -12,6 +12,7 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Raleway:wght@400;600&display=swap');
 :root{--r:#CC0000;--dr:#8B0000;--g:#D4AF37;--w:#F5F0E8;--bk:#080808;--g1:#181818;--g2:#242424;}
+:root.day{--bk:#f0ece4;--g1:#e0dbd0;--g2:#d0ccc0;--w:#1a1a1a;}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;overflow-x:hidden;}
 body{background:var(--bk);color:var(--w);font-family:'Raleway',sans-serif;}
@@ -90,6 +91,7 @@ body{background:var(--bk);color:var(--w);font-family:'Raleway',sans-serif;}
 .vi{font-size:14px;color:rgba(245,240,232,.3);}
 .vs{flex:1;-webkit-appearance:none;height:3px;background:rgba(255,255,255,.12);border-radius:2px;cursor:pointer;outline:none;}
 .vs::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--r);}
+.cf-overlay{position:fixed;inset:0;background:rgba(0,0,0,0);pointer-events:none;z-index:150;transition:background 2s ease;}
 .ntf{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:rgba(16,16,16,.97);border:1px solid rgba(204,0,0,.5);border-radius:10px;padding:10px 18px;font-size:12px;color:var(--w);z-index:9999;opacity:0;pointer-events:none;transition:opacity .3s;max-width:85vw;text-align:center;}
 .ntf.on{opacity:1;}
 .full{position:fixed;inset:0;z-index:500;background:#040404;display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px 24px;}
@@ -146,16 +148,64 @@ body{background:var(--bk);color:var(--w);font-family:'Raleway',sans-serif;}
     </div>
   </div>
   <div id="apiSt" class="status"></div>
-  <div class="tabs">
+  <div class="tabs" style="overflow-x:auto;flex-wrap:nowrap;">
     <button class="tab on" onclick="swTab('s')">Kërkim</button>
     <button class="tab" onclick="swTab('h')">&#128293; Hitet</button>
-    <button class="tab" onclick="swTab('n')">&#127381; Të Reja</button>
+    <button class="tab" onclick="swTab('n')">&#127381; Reja</button>
     <button class="tab" onclick="swTab('l')">&#9829;</button>
+    <button class="tab" onclick="swTab('rc')">&#9200;</button>
+    <button class="tab" onclick="swTab('pl')">&#9783;</button>
   </div>
   <div id="ts" class="tc on"><div class="stl">Rezultatet</div><div id="rl"><div class="emp"><div class="ic">&#9835;</div>Kërko muzikën tënde shqiptare<br><span style="font-size:11px;opacity:.4">YouTube • Nonstop • Android Auto</span></div></div></div>
   <div id="th" class="tc"><div class="stl">Top Hite</div><div id="hl"></div></div>
   <div id="tn" class="tc"><div class="stl">Këngët e Reja</div><div id="nl"></div></div>
   <div id="tl" class="tc"><div class="stl">Të preferuara</div><div id="ll"><div class="emp">Nuk ke ende këngë &#9825;</div></div></div>
+  <div id="trc" class="tc"><div class="stl">Historiku</div><div id="rcl"></div></div>
+  <div id="tpl" class="tc">
+    <div class="stl">Playlist-at e mia</div>
+    <div style="padding:0 16px 12px;display:flex;gap:8px;">
+      <input type="text" id="plName" placeholder="Emri i playlist-it..." style="flex:1;background:#181818;border:1px solid rgba(204,0,0,.4);border-radius:8px;padding:10px 12px;color:#F5F0E8;font-size:13px;outline:none;">
+      <button onclick="createPL()" style="background:#CC0000;border:none;border-radius:8px;padding:10px 14px;color:white;font-size:13px;cursor:pointer;">+ Krijo</button>
+    </div>
+    <div id="pll"></div>
+  </div>
+</div>
+
+<!-- EQUALIZER PANEL -->
+<div id="eqPanel" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#111;border-top:1px solid rgba(204,0,0,.4);padding:12px 16px 16px;z-index:199;max-width:480px;margin:0 auto;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <span style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:3px;color:#CC0000;">EQUALIZER</span>
+    <button onclick="toggleEQ()" style="background:none;border:none;color:rgba(245,240,232,.4);font-size:20px;cursor:pointer;">&#10005;</button>
+  </div>
+  <div style="display:flex;gap:8px;align-items:flex-end;height:90px;padding:0 4px;">
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;">
+      <input type="range" id="eq60" min="-12" max="12" value="0" step="1" orient="vertical" style="writing-mode:vertical-lr;direction:rtl;-webkit-appearance:slider-vertical;width:28px;height:60px;accent-color:#CC0000;" oninput="updateEQ()">
+      <span style="font-size:9px;color:rgba(245,240,232,.4);">60Hz</span>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;">
+      <input type="range" id="eq250" min="-12" max="12" value="0" step="1" orient="vertical" style="writing-mode:vertical-lr;direction:rtl;-webkit-appearance:slider-vertical;width:28px;height:60px;accent-color:#CC0000;" oninput="updateEQ()">
+      <span style="font-size:9px;color:rgba(245,240,232,.4);">250Hz</span>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;">
+      <input type="range" id="eq1k" min="-12" max="12" value="0" step="1" orient="vertical" style="writing-mode:vertical-lr;direction:rtl;-webkit-appearance:slider-vertical;width:28px;height:60px;accent-color:#CC0000;" oninput="updateEQ()">
+      <span style="font-size:9px;color:rgba(245,240,232,.4);">1kHz</span>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;">
+      <input type="range" id="eq4k" min="-12" max="12" value="0" step="1" orient="vertical" style="writing-mode:vertical-lr;direction:rtl;-webkit-appearance:slider-vertical;width:28px;height:60px;accent-color:#CC0000;" oninput="updateEQ()">
+      <span style="font-size:9px;color:rgba(245,240,232,.4);">4kHz</span>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;">
+      <input type="range" id="eq16k" min="-12" max="12" value="0" step="1" orient="vertical" style="writing-mode:vertical-lr;direction:rtl;-webkit-appearance:slider-vertical;width:28px;height:60px;accent-color:#CC0000;" oninput="updateEQ()">
+      <span style="font-size:9px;color:rgba(245,240,232,.4);">16kHz</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+    <button onclick="eqPreset(0,0,0,0,0)" style="flex:1;background:#181818;border:1px solid rgba(255,255,255,.1);border-radius:6px;color:rgba(245,240,232,.6);font-size:11px;padding:6px;cursor:pointer;">Flat</button>
+    <button onclick="eqPreset(4,2,0,-1,-2)" style="flex:1;background:#181818;border:1px solid rgba(255,255,255,.1);border-radius:6px;color:rgba(245,240,232,.6);font-size:11px;padding:6px;cursor:pointer;">Bass+</button>
+    <button onclick="eqPreset(-2,0,2,3,4)" style="flex:1;background:#181818;border:1px solid rgba(255,255,255,.1);border-radius:6px;color:rgba(245,240,232,.6);font-size:11px;padding:6px;cursor:pointer;">Treble+</button>
+    <button onclick="eqPreset(3,1,0,1,2)" style="flex:1;background:#181818;border:1px solid rgba(255,255,255,.1);border-radius:6px;color:rgba(245,240,232,.6);font-size:11px;padding:6px;cursor:pointer;">Pop</button>
+    <button onclick="eqPreset(5,3,0,3,4)" style="flex:1;background:#181818;border:1px solid rgba(255,255,255,.1);border-radius:6px;color:rgba(245,240,232,.6);font-size:11px;padding:6px;cursor:pointer;">Rock</button>
+  </div>
 </div>
 
 <div class="ply">
@@ -177,12 +227,17 @@ body{background:var(--bk);color:var(--w);font-family:'Raleway',sans-serif;}
     <button class="cb" onclick="next()">&#9654;&#9654;</button>
     <button class="cb" id="rpb" onclick="togRp()">&#8635;</button>
   </div>
+  <div style="display:flex;justify-content:flex-end;padding:2px 0 0;">
+    <button onclick="toggleEQ()" style="background:none;border:none;color:rgba(245,240,232,.3);font-size:11px;letter-spacing:1px;cursor:pointer;padding:4px 6px;">EQ &#9881;</button>
+  </div>
   <div class="vr">
     <span class="vi">&#128264;</span>
     <input type="range" class="vs" id="mvs" min="0" max="100" value="90" oninput="setVol(this.value)">
     <span class="vi">&#128266;</span>
   </div>
 </div>
+
+<div id="cfOverlay" class="cf-overlay"></div>
 
 <script>
 var KEY='AIzaSyB7nq_h966bcTlt0RLRhaaaIV6siCM6pyI';
@@ -352,7 +407,10 @@ function renderList(arr,el,src){
       +'<div class="tno" style="display:none"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 18V5l12-2v13" stroke="#D4AF37" stroke-width="1.5" stroke-linecap="round"/><circle cx="6" cy="18" r="3" stroke="#D4AF37" stroke-width="1.5"/><circle cx="18" cy="16" r="3" stroke="#D4AF37" stroke-width="1.5"/></svg></div>'
       +'<div class="pov">&#9654;</div></div>'
       +'<div class="ti"><div class="tn">'+esc(t.title)+'</div><div class="tc2">'+esc(t.channel)+'</div></div>'
-      +'<span class="td">'+t.duration+'</span></div>';
+      +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">'
+      +'<span class="td">'+t.duration+'</span>'
+      +'<button onclick="event.stopPropagation();addToPL('+JSON.stringify(t).replace(/"/g,'&quot;')+')" style="background:none;border:none;color:rgba(245,240,232,.25);font-size:14px;cursor:pointer;padding:2px 4px;" title="Shto te playlist">&#9783;</button>'
+      +'</div></div>';
   }).join('');
 }
 function togLk(){
@@ -375,19 +433,33 @@ function renderLk(){
   if(!lk.length){el.innerHTML='<div class="emp">Nuk ke ende këngë &#9825;</div>';return;}
   renderList(lk,el,'l');
 }
+function renderRc(){
+  var rc=JSON.parse(localStorage.getItem('sq_rc')||'[]');
+  var el=document.getElementById('rcl');
+  if(!el)return;
+  if(!rc.length){el.innerHTML='<div class="emp">Historiku është bosh</div>';return;}
+  var saved=tracks,savedList=curList;
+  tracks=rc;curList='rc';
+  renderList(rc,el,'rc');
+  tracks=saved;curList=savedList;
+}
 function svRc(t){
   var rc=JSON.parse(localStorage.getItem('sq_rc')||'[]');
   rc=rc.filter(function(x){return x.id!==t.id;});rc.unshift(t);
-  if(rc.length>30)rc.pop();localStorage.setItem('sq_rc',JSON.stringify(rc));
+  if(rc.length>50)rc.pop();localStorage.setItem('sq_rc',JSON.stringify(rc));
 }
 function swTab(n){
-  ['s','h','n','l'].forEach(function(x,i){
-    document.getElementById('t'+x).classList.toggle('on',x===n);
-    document.querySelectorAll('.tab')[i].classList.toggle('on',x===n);
+  ['s','h','n','l','rc','pl'].forEach(function(x,i){
+    var el=document.getElementById('t'+x);
+    if(el)el.classList.toggle('on',x===n);
+    var tabs=document.querySelectorAll('.tab');
+    if(tabs[i])tabs[i].classList.toggle('on',x===n);
   });
   if(n==='h'&&!window.hList)loadPreset('muzik shqip top hite 2024 2025','hl','hList');
   if(n==='n'&&!window.nList)loadPreset('kenget e reja shqip 2025 2026','nl','nList');
   if(n==='l')renderLk();
+  if(n==='rc')renderRc();
+  if(n==='pl')renderPLs();
 }
 function oFull(){document.getElementById('full').classList.add('on');}
 function cFull(){document.getElementById('full').classList.remove('on');}
@@ -460,7 +532,10 @@ async function nextSmart(){
     return;
   }
   // Otherwise use normal next
-  next();
+  if(!tracks.length)return;
+  var i=rp?cur:sh?rnd():cur+1;
+  if(i>=tracks.length)i=0;
+  play(i,curList);
 }
 
 async function fetchRelated(title){
@@ -487,6 +562,357 @@ async function fetchRelated(title){
 
 // When user searches, also prepare related
 
+
+// === PLAYLIST FUNCTIONS ===
+function createPL(){
+  var name=document.getElementById('plName').value.trim();
+  if(!name){ntf('Shkruaj emrin e playlist-it');return;}
+  var pls=JSON.parse(localStorage.getItem('sq_pls')||'{}');
+  if(pls[name]){ntf('Playlist ekziston tashmë');return;}
+  pls[name]=[];
+  localStorage.setItem('sq_pls',JSON.stringify(pls));
+  document.getElementById('plName').value='';
+  ntf('&#9783; Playlist "'+name+'" u krijua!');
+  renderPLs();
+}
+
+function renderPLs(){
+  var pls=JSON.parse(localStorage.getItem('sq_pls')||'{}');
+  var el=document.getElementById('pll');if(!el)return;
+  var names=Object.keys(pls);
+  if(!names.length){el.innerHTML='<div class="emp">Nuk ke ende playlist &#9783;<br><span style="font-size:11px;opacity:.5">Krijo një me butonin lart</span></div>';return;}
+  el.innerHTML=names.map(function(name){
+    var count=pls[name].length;
+    return '<div style="display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;" onclick="openPL(''+encodeURIComponent(name)+'')">'
+      +'<div style="width:46px;height:46px;border-radius:8px;background:#242424;display:flex;align-items:center;justify-content:center;font-size:20px;margin-right:12px;">&#9783;</div>'
+      +'<div style="flex:1;">'
+      +'<div style="font-size:13px;font-weight:600;color:#F5F0E8;">'+esc(name)+'</div>'
+      +'<div style="font-size:11px;color:rgba(245,240,232,.4);">'+count+' këngë</div>'
+      +'</div>'
+      +'<button onclick="event.stopPropagation();deletePL(''+encodeURIComponent(name)+'')" style="background:none;border:none;color:rgba(245,240,232,.3);font-size:18px;cursor:pointer;padding:8px;">&#128465;</button>'
+      +'</div>';
+  }).join('');
+}
+
+function openPL(encodedName){
+  var name=decodeURIComponent(encodedName);
+  var pls=JSON.parse(localStorage.getItem('sq_pls')||'{}');
+  var list=pls[name]||[];
+  var el=document.getElementById('pll');
+  if(!list.length){
+    ntf('Playlist "'+name+'" është bosh — shto këngë me ♥');
+    return;
+  }
+  tracks=list;curList='pl_'+name;
+  renderList(list,el,'pl_'+name);
+  ntf('&#9783; Duke luajtur: '+name);
+  if(list.length>0)play(0,'pl_'+name);
+}
+
+function deletePL(encodedName){
+  var name=decodeURIComponent(encodedName);
+  var pls=JSON.parse(localStorage.getItem('sq_pls')||'{}');
+  delete pls[name];
+  localStorage.setItem('sq_pls',JSON.stringify(pls));
+  ntf('U fshi playlist "'+name+'"');
+  renderPLs();
+}
+
+function addToPL(track){
+  var pls=JSON.parse(localStorage.getItem('sq_pls')||'{}');
+  var names=Object.keys(pls);
+  if(!names.length){ntf('Krijo një playlist fillimisht');swTab('pl');return;}
+  // If only one playlist, add directly
+  if(names.length===1){
+    pls[names[0]].push(track);
+    localStorage.setItem('sq_pls',JSON.stringify(pls));
+    ntf('&#9783; Shtuar te "'+names[0]+'"');
+    return;
+  }
+  // Show picker
+  var picker=document.createElement('div');
+  picker.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;';
+  picker.innerHTML='<div style="background:#181818;border-radius:12px;width:100%;max-width:320px;overflow:hidden;">'
+    +'<div style="padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08);font-family:Cinzel,serif;font-size:12px;letter-spacing:2px;color:#CC0000;">SHTO TE PLAYLIST</div>'
+    +names.map(function(n){
+      return '<div style="padding:14px 16px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05);color:#F5F0E8;font-size:14px;" onclick="addToSpecificPL(''+encodeURIComponent(n)+'',''+encodeURIComponent(JSON.stringify(track))+'');document.body.removeChild(this.closest('[style*=fixed]'))">'+esc(n)+'</div>';
+    }).join('')
+    +'<div style="padding:14px 16px;cursor:pointer;color:rgba(245,240,232,.4);font-size:13px;" onclick="document.body.removeChild(this.closest('[style*=fixed]'))">Anulo</div>'
+    +'</div>';
+  document.body.appendChild(picker);
+}
+
+function addToSpecificPL(encodedName,encodedTrack){
+  var name=decodeURIComponent(encodedName);
+  var track=JSON.parse(decodeURIComponent(encodedTrack));
+  var pls=JSON.parse(localStorage.getItem('sq_pls')||'{}');
+  if(!pls[name])pls[name]=[];
+  if(pls[name].find(function(x){return x.id===track.id;})){ntf('Tashmë është në playlist');return;}
+  pls[name].push(track);
+  localStorage.setItem('sq_pls',JSON.stringify(pls));
+  ntf('&#9783; Shtuar te "'+name+'"');
+}
+
+// === EQUALIZER ===
+var eqCtx=null,eqFilters=[],eqSource=null,eqConnected=false;
+var eqFreqs=[60,250,1000,4000,16000];
+var eqIds=['eq60','eq250','eq1k','eq4k','eq16k'];
+
+function initEQ(){
+  try{
+    if(eqCtx)return;
+    eqCtx=new(window.AudioContext||window.webkitAudioContext)();
+    eqFilters=eqFreqs.map(function(freq,i){
+      var f=eqCtx.createBiquadFilter();
+      f.type=i===0?'lowshelf':i===eqFreqs.length-1?'highshelf':'peaking';
+      f.frequency.value=freq;
+      f.gain.value=0;
+      return f;
+    });
+    // Chain filters
+    for(var i=0;i<eqFilters.length-1;i++){
+      eqFilters[i].connect(eqFilters[i+1]);
+    }
+    eqFilters[eqFilters.length-1].connect(eqCtx.destination);
+  }catch(x){}
+}
+
+function toggleEQ(){
+  var p=document.getElementById('eqPanel');
+  if(p)p.style.display=p.style.display==='none'?'block':'none';
+  initEQ();
+}
+
+function updateEQ(){
+  if(!eqCtx)initEQ();
+  eqIds.forEach(function(id,i){
+    var v=parseFloat(document.getElementById(id).value)||0;
+    if(eqFilters[i])eqFilters[i].gain.value=v;
+  });
+  // Save EQ settings
+  var vals=eqIds.map(function(id){return document.getElementById(id).value;});
+  localStorage.setItem('sq_eq',JSON.stringify(vals));
+}
+
+function eqPreset(b1,b2,m,t1,t2){
+  var vals=[b1,b2,m,t1,t2];
+  eqIds.forEach(function(id,i){document.getElementById(id).value=vals[i];});
+  updateEQ();
+  ntf('EQ u ndryshua!');
+}
+
+// Load saved EQ on start
+(function(){
+  var saved=JSON.parse(localStorage.getItem('sq_eq')||'null');
+  if(saved){setTimeout(function(){eqIds.forEach(function(id,i){var el=document.getElementById(id);if(el)el.value=saved[i]||0;});if(eqCtx)updateEQ();},1000);}
+})();
+
+
+// ════════════════════════════════════════════════
+// AUTO NIGHT THEME
+// ════════════════════════════════════════════════
+function applyTheme(){
+  var h=new Date().getHours();
+  var isDay=(h>=7&&h<20);
+  document.documentElement.classList.toggle('day',isDay);
+}
+applyTheme();
+setInterval(applyTheme,60000);
+
+// ════════════════════════════════════════════════
+// CROSSFADE (2 second fade between songs)
+// ════════════════════════════════════════════════
+var cfDuration=2000;
+function crossfadeTo(videoId){
+  if(!ytRdy||!ytp)return;
+  var ov=document.getElementById('cfOverlay');
+  // Fade out current
+  if(ov){ov.style.background='rgba(0,0,0,0.7)';ov.style.transition='background '+cfDuration/2000+'s ease';}
+  // Lower volume gradually
+  var startVol=vol;
+  var steps=20;
+  var step=0;
+  var fadeOut=setInterval(function(){
+    step++;
+    if(!ytRdy||!ytp){clearInterval(fadeOut);return;}
+    try{ytp.setVolume(Math.max(0,startVol-(startVol/steps)*step));}catch(x){}
+    if(step>=steps){
+      clearInterval(fadeOut);
+      // Load new video
+      try{
+        ytp.loadVideoById({videoId:videoId});
+        var att=0,poll=setInterval(function(){
+          att++;
+          if(!ytp)return clearInterval(poll);
+          var st=ytp.getPlayerState();
+          if(st===1||st===3){clearInterval(poll);return;}
+          if(att>20){clearInterval(poll);return;}
+          try{ytp.playVideo();}catch(x){}
+        },400);
+      }catch(x){}
+      // Fade volume back in
+      var step2=0;
+      var fadeIn=setInterval(function(){
+        step2++;
+        if(!ytRdy||!ytp){clearInterval(fadeIn);return;}
+        try{ytp.setVolume(Math.min(startVol,(startVol/steps)*step2));}catch(x){}
+        if(step2>=steps){
+          clearInterval(fadeIn);
+          try{ytp.setVolume(startVol);}catch(x){}
+        }
+      },cfDuration/2/steps);
+      // Fade overlay back out
+      if(ov){setTimeout(function(){ov.style.background='rgba(0,0,0,0)';},200);}
+    }
+  },cfDuration/2/steps);
+}
+
+// ════════════════════════════════════════════════
+// LOCK SCREEN + NOTIFICATION + BACKGROUND AUTOPLAY
+// The key fix for "next song not playing on lock screen"
+// ════════════════════════════════════════════════
+
+// Use Audio element as a "bridge" - keeps audio session alive on lock screen
+var bridgeAudio=null;
+function initBridgeAudio(){
+  if(bridgeAudio)return;
+  try{
+    // Create a silent but real audio element
+    // This keeps the audio session active even when screen is locked
+    bridgeAudio=new Audio();
+    bridgeAudio.src='data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAA'+
+      'EAAQAAgD4AAAB9AAACABAAZGFOYQoGAACBhYqFbF1fdJivrJBhUF'+
+      'KLo7mnjFZBNSuMoMSzm3JKOC+Vq9fSr4NTOyqVrN3ZuI9fRDCiq'+
+      'NjWuJFlSDAtl7bj1a6EWz4sl8Df0LOBWUMynrrj2b2XaVBCMamw4'+
+      'NmwjGhQPyqksd/TrYZiVE8unMTl3MObaVJKP';
+    bridgeAudio.loop=true;
+    bridgeAudio.volume=0.001; // Nearly silent
+    bridgeAudio.play().catch(function(){});
+  }catch(x){}
+}
+
+// Override doPlay to use crossfade
+var originalDoPlay=doPlay;
+function doPlay(videoId){
+  if(playing&&ytRdy&&ytp){
+    // Use crossfade if already playing
+    try{
+      var st=ytp.getPlayerState();
+      if(st===1){crossfadeTo(videoId);return;}
+    }catch(x){}
+  }
+  originalDoPlay(videoId);
+}
+
+// ── LOCK SCREEN AUTOPLAY FIX ──────────────────────────
+// When screen locks, browser suspends JS timers
+// We use multiple strategies to ensure next song plays
+
+// Strategy 1: MediaSession nexttrack handler (lock screen controls)
+// Strategy 2: Audio element onended event
+// Strategy 3: Page visibility restore
+
+var nextSongQueued=false;
+var nextSongId=null;
+
+// Enhanced visibility handler
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible'){
+    reqWL();
+    // If a next song was queued while screen was off, play it now
+    if(nextSongQueued&&nextSongId){
+      nextSongQueued=false;
+      var id=nextSongId;nextSongId=null;
+      if(ytRdy&&ytp){
+        try{
+          ytp.loadVideoById({videoId:id});
+          setTimeout(function(){try{ytp.playVideo();}catch(x){}},500);
+        }catch(x){}
+      }
+    } else if(playing&&ytRdy&&ytp){
+      try{
+        var st=ytp.getPlayerState();
+        if(st===2||st===-1||st===0)ytp.playVideo();
+      }catch(x){}
+    }
+  }
+});
+
+// Enhanced next() for lock screen
+function next(){
+  if(!tracks.length)return;
+  var i=rp?cur:sh?rnd():cur+1;
+  if(i>=tracks.length)i=0;
+  var t=tracks[i];
+  if(!t)return;
+
+  cur=i;
+  updNP(t);
+  svRc(t);
+  document.querySelectorAll('.trk').forEach(function(el,j){el.classList.toggle('on',j===i);});
+
+  if(document.hidden){
+    // Screen is off - queue the song and try to play
+    nextSongQueued=true;
+    nextSongId=t.id;
+    // Still try to play directly
+    if(ytRdy&&ytp){
+      try{
+        ytp.loadVideoById({videoId:t.id});
+        setTimeout(function(){try{ytp.playVideo();}catch(x){}},800);
+        setTimeout(function(){try{ytp.playVideo();}catch(x){}},2000);
+        setTimeout(function(){try{ytp.playVideo();}catch(x){}},4000);
+      }catch(x){}
+    }
+  } else {
+    doPlay(t.id);
+  }
+  nextSmart_related(t);
+}
+
+function nextSmart_related(t){
+  if(relatedTracks&&relatedTracks.length>0){
+    var nxt=relatedTracks.shift();
+    tracks[cur]=t; // keep current
+  }
+  if(relatedTracks&&relatedTracks.length<3)fetchRelated(t.title);
+}
+
+// ── NOTIFICATIONS ─────────────────────────────────────
+function showNotification(title,artist,thumb){
+  if(!('Notification' in window))return;
+  if(Notification.permission==='granted'){
+    try{
+      new Notification('▶ '+title,{
+        body:artist,
+        icon:thumb||'',
+        silent:true,
+        tag:'shqiperia-now-playing'
+      });
+    }catch(x){}
+  } else if(Notification.permission!=='denied'){
+    Notification.requestPermission();
+  }
+}
+
+// Enhanced msSetup with notification
+var originalMsSetup=msSetup;
+function msSetup(){
+  originalMsSetup();
+  var t=tracks[cur];if(!t)return;
+  // Show notification
+  showNotification(t.title,t.channel,t.thumb);
+  // Init bridge audio for lock screen
+  initBridgeAudio();
+}
+
+// Request notification permission on first play
+document.addEventListener('click',function(){
+  if('Notification' in window&&Notification.permission==='default'){
+    Notification.requestPermission();
+  }
+  initBridgeAudio();
+},{once:true});
 
 function showSt(t,m){var el=document.getElementById('apiSt');el.className='status'+(t?' '+t:'');el.innerHTML=m||'';}
 function ntf(m){var el=document.getElementById('ntf');el.innerHTML=m;el.classList.add('on');clearTimeout(el._t);el._t=setTimeout(function(){el.classList.remove('on');},2800);}
