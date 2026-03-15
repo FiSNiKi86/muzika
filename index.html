@@ -18,7 +18,7 @@
 }
 .day-mode{
   --bk:#F0EDE8;--g1:#E8E4DE;--g2:#D8D4CE;
-  --txt:#1a1a1a;--bg:#F0EDE8;--bg1:#E8E4DE;--bg2:#D8D4CE;
+  --txt:#000000;--bg:#F0EDE8;--bg1:#E8E4DE;--bg2:#D8D4CE;
   --border:rgba(204,0,0,.25);
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -264,7 +264,7 @@ body{background:var(--bk);color:var(--txt);font-family:'Raleway',sans-serif;tran
     <svg class="lsvg" viewBox="0 0 46 46"><rect width="46" height="46" rx="10" fill="#CC0000"/><path d="M23 5.5L19 12L13 10L16 16L9 17.5L15 21.5L11 28L18 25L16 32L20.5 29L20.5 38.5L23 35.5L25.5 38.5L25.5 29L30 32L28 25L35 28L31 21.5L37 17.5L30 16L33 10L27 12Z" fill="#000" opacity=".87"/><circle cx="23" cy="6.5" r="3" fill="#000" opacity=".87"/><g fill="#D4AF37"><rect x="13.5" y="26" width="2.3" height="7.5" rx=".6"/><ellipse cx="12.5" cy="33.8" rx="2.8" ry="1.8"/><rect x="15.8" y="20.5" width="2.3" height="6.5" rx=".6"/><ellipse cx="14.8" cy="27.2" rx="2.8" ry="1.8"/><rect x="15.8" y="20.5" width="6" height="1.4" rx=".6"/></g><g fill="#F5F0E8" opacity=".55"><rect x="28" y="24" width="2" height="6.5" rx=".5"/><ellipse cx="27" cy="30.7" rx="2.4" ry="1.5"/><rect x="30" y="19.5" width="2" height="5.8" rx=".5"/><ellipse cx="29" cy="25.5" rx="2.4" ry="1.5"/><rect x="30" y="19.5" width="4.8" height="1.2" rx=".5"/></g></svg>
     <div class="ltx"><div class="lti">SHQIPËRIA</div><div class="lsu">&#9835; MUZIKA JOTE &#9835;</div></div>
     <div style="display:flex;gap:6px;align-items:center;">
-      <button id="themeBtn" onclick="togTheme()" style="background:none;border:none;cursor:pointer;font-size:18px;padding:4px;" title="Tema">&#9790;</button>
+      <button id="themeBtn" onclick="togTheme()" style="background:none;border:none;cursor:pointer;font-size:24px;padding:4px;font-weight:bold;" title="Tema">☀</button>
       <div class="eq off" id="heq"><span></span><span></span><span></span><span></span><span></span></div>
     </div>
   </div>
@@ -551,6 +551,7 @@ function togTheme(){
   dayMode=!dayMode;
   document.body.classList.toggle('day-mode',dayMode);
   document.getElementById('themeBtn').textContent=dayMode?'☀':'☾';
+  document.getElementById('themeBtn').style.fontSize=dayMode?'24px':'24px';
   var ply=document.querySelector('.ply');
   if(ply)ply.style.background=dayMode?'rgba(240,237,232,.98)':'rgba(6,6,6,.98)';
   ntf(dayMode?'☀ Tema e ditës':'☾ Tema e natës');
@@ -558,33 +559,46 @@ function togTheme(){
 }
 (function(){
   var saved=localStorage.getItem('sq_theme');
-  if(saved==='day'){dayMode=true;document.body.classList.add('day-mode');document.getElementById('themeBtn').textContent='☀';}
+  if(saved==='day'){dayMode=true;document.body.classList.add('day-mode');document.getElementById('themeBtn').textContent='☀';document.getElementById('themeBtn').style.fontSize='24px';}
   applyTheme();
   setInterval(applyTheme,60000);
 })();
 
 // ── IMPROVED AD DETECTION & SKIPPING ──────────────────
 var adCheckInterval=null;
+var adSkipAttempts=0;
 function startAdCheck(){
   stopAdCheck();
   adCheckActive=true;
+  adSkipAttempts=0;
   adCheckInterval=setInterval(function(){
     if(!ytp||!ytRdy||!adCheckActive)return;
     try{
       var dur=ytp.getDuration()||0;
       var pos=ytp.getCurrentTime()||0;
+      var state=ytp.getPlayerState();
       
-      // Detect ads: duration < 60 seconds and position > 0
-      // This catches most YouTube ads (pre-roll, mid-roll, post-roll)
+      // Detect ads: duration < 60 seconds (most ads are short)
       if(dur>0&&dur<60&&pos>0){
+        adSkipAttempts++;
+        // Try to skip by seeking to end
         ytp.seekTo(dur,true);
-        ntf('📺 Reklama u kapë - kalim...');
+        // Also try to mute during ad
+        ytp.setVolume(0);
+        if(adSkipAttempts===1){
+          ntf('📺 Reklama u kapë - kalim...');
+        }
+      }
+      // If video is playing normally (duration > 60s), restore volume
+      else if(dur>60&&pos>0&&ytp.getVolume()===0){
+        ytp.setVolume(vol);
+        adSkipAttempts=0;
       }
     }catch(x){}
-  },300);
+  },250);
   
-  // Stop checking after 45 seconds (video should have started by then)
-  setTimeout(function(){stopAdCheck();},45000);
+  // Stop checking after 60 seconds (video should have started by then)
+  setTimeout(function(){stopAdCheck();},60000);
 }
 
 function stopAdCheck(){
@@ -593,6 +607,9 @@ function stopAdCheck(){
     adCheckInterval=null;
   }
   adCheckActive=false;
+  adSkipAttempts=0;
+  // Restore volume when stopping ad check
+  try{if(ytp&&ytRdy)ytp.setVolume(vol);}catch(x){}
 }
 
 // ── EQUALIZER ────────────────────────────────────────
