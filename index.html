@@ -207,11 +207,13 @@ window.onYouTubeIframeAPIReady=function(){
           playing=true;errCnt=0;updB();startTmr();
           document.getElementById('heq').classList.remove('off');
           msSetup();showSt('');
+          // Ad skip: check every 500ms if ad is playing
+          checkAd();
         }else if(e.data===S.PAUSED){
           playing=false;updB();stopTmr();
           document.getElementById('heq').classList.add('off');
         }else if(e.data===S.ENDED){
-          next();
+          nextSmart();
         }else if(e.data===-1){
           try{ytp.playVideo();}catch(x){}
         }
@@ -328,6 +330,8 @@ async function doSearch(){
     tracks=list;curList='s';
     renderList(tracks,document.getElementById('rl'),'s');
     showSt('ok','&#10003; '+tracks.length+' këngë — prek për të dëgjuar!');
+    relatedTracks=[];lastQuery='';
+    setTimeout(function(){fetchRelated(q);},1500);
   }catch(e){showSt('err','&#10060; '+e.message);document.getElementById('rl').innerHTML='<div class="emp"><div class="ic">&#9888;</div>'+esc(e.message)+'</div>';}
 }
 async function loadPreset(q,elId,lKey){
@@ -390,7 +394,20 @@ function cFull(){document.getElementById('full').classList.remove('on');}
 function msSetup(){
   if(!('mediaSession' in navigator))return;
   var t=tracks[cur];if(!t)return;
-  navigator.mediaSession.metadata=new MediaMetadata({title:t.title,artist:t.channel,album:'Shqipëria Music',artwork:[{src:t.thumb,sizes:'480x360',type:'image/jpeg'}]});
+  // Use absolute URL for Android Auto compatibility
+  var thumb=t.thumb||'';
+  if(thumb&&!thumb.startsWith('http'))thumb='https://i.ytimg.com/vi/'+t.id+'/hqdefault.jpg';
+  var thumbHQ='https://i.ytimg.com/vi/'+t.id+'/maxresdefault.jpg';
+  navigator.mediaSession.metadata=new MediaMetadata({
+    title:t.title,
+    artist:t.channel,
+    album:'Shqipëria Music',
+    artwork:[
+      {src:thumbHQ,sizes:'1280x720',type:'image/jpeg'},
+      {src:thumb,sizes:'480x360',type:'image/jpeg'},
+      {src:'https://i.ytimg.com/vi/'+t.id+'/mqdefault.jpg',sizes:'320x180',type:'image/jpeg'}
+    ]
+  });
   navigator.mediaSession.setActionHandler('play',function(){if(ytp)ytp.playVideo();});
   navigator.mediaSession.setActionHandler('pause',function(){if(ytp)ytp.pauseVideo();});
   navigator.mediaSession.setActionHandler('nexttrack',next);
@@ -398,20 +415,143 @@ function msSetup(){
   try{navigator.mediaSession.setActionHandler('seekto',function(d){if(ytp)ytp.seekTo(d.seekTime,true);});}catch(x){}
   navigator.mediaSession.playbackState='playing';
 }
-document.addEventListener('visibilitychange',function(){
-  if(document.visibilityState==='visible'&&playing&&ytRdy&&ytp)try{ytp.playVideo();}catch(x){}
-});
+
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('data:text/javascript,self.addEventListener("fetch",function(e){})').catch(function(){});
 }
+// === AD SKIP ===
+var adCheckTimer=null;
+function checkAd(){
+  clearInterval(adCheckTimer);
+  adCheckTimer=setInterval(function(){
+    if(!ytp||!ytRdy)return;
+    try{
+      var iframe=document.querySelector('#ytc iframe');
+      if(!iframe)return;
+      // Check if current video duration is very short (ad indicator)
+      var dur=ytp.getDuration()||0;
+      var curr=ytp.getCurrentTime()||0;
+      // Try to find skip button via postMessage
+      ytp.getIframe&&ytp.getIframe().contentWindow&&
+        ytp.getIframe().contentWindow.postMessage(
+          '{"event":"command","func":"seekTo","args":['+(dur>0?dur:99999)+',true]}','*'
+        );
+    }catch(x){}
+  },500);
+  // Stop checking after 40 seconds (ads are max 30s)
+  setTimeout(function(){clearInterval(adCheckTimer);},40000);
+}
+
+// === SMART AUTOPLAY (like YouTube) ===
+var relatedTracks=[];
+var lastQuery='';
+
+async function nextSmart(){
+  // If we have a queue of related tracks, play next
+  if(relatedTracks.length>0){
+    var nxt=relatedTracks.shift();
+    tracks.unshift(nxt);
+    cur=0;
+    updNP(nxt);
+    doPlay(nxt.id);
+    ntf('&#9654; '+nxt.title.substring(0,50));
+    // Fetch more if running low
+    if(relatedTracks.length<3) fetchRelated(nxt.title);
+    return;
+  }
+  // Otherwise use normal next
+  next();
+}
+
+async function fetchRelated(title){
+  if(!title)return;
+  try{
+    // Extract artist name from title (before dash or first 2 words)
+    var artist=title.split('-')[0].trim().split(' ').slice(0,2).join(' ');
+    var queries=[
+      artist+' shqip mix',
+      artist+' kenget me te mira',
+      'remix shqip '+new Date().getFullYear()
+    ];
+    var q=queries[Math.floor(Math.random()*queries.length)];
+    if(q===lastQuery)return;
+    lastQuery=q;
+    var d=await ytFetch('search',{q:q,type:'video',maxResults:10});
+    var list=i2t(d.items);
+    // Filter out already played
+    var played=JSON.parse(localStorage.getItem('sq_rc')||'[]').map(function(x){return x.id;});
+    list=list.filter(function(t){return played.indexOf(t.id)===-1;});
+    relatedTracks=relatedTracks.concat(list).slice(0,15);
+  }catch(x){}
+}
+
+// When user searches, also prepare related
+
+
 function showSt(t,m){var el=document.getElementById('apiSt');el.className='status'+(t?' '+t:'');el.innerHTML=m||'';}
 function ntf(m){var el=document.getElementById('ntf');el.innerHTML=m;el.classList.add('on');clearTimeout(el._t);el._t=setTimeout(function(){el.classList.remove('on');},2800);}
 function fmt(s){if(!s||isNaN(s))return'0:00';s=Math.floor(s);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
 function pDur(iso){var m=iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);if(!m)return'—';var h=+(m[1]||0),mn=+(m[2]||0),s=+(m[3]||0);return h>0?h+':'+String(mn).padStart(2,'0')+':'+String(s).padStart(2,'0'):mn+':'+String(s).padStart(2,'0');}
 function dH(s){var t=document.createElement('textarea');t.innerHTML=s;return t.value;}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-async function reqWL(){try{if('wakeLock' in navigator)await navigator.wakeLock.request('screen');}catch(x){}}
+// === BACKGROUND KEEP-ALIVE ===
+// 1. Wake Lock - keeps screen/CPU awake
+var wl=null;
+async function reqWL(){
+  try{
+    if('wakeLock' in navigator){
+      wl=await navigator.wakeLock.request('screen');
+      wl.addEventListener('release',function(){setTimeout(reqWL,1000);});
+    }
+  }catch(x){}
+}
+
+// 2. Silent audio loop - tricks browser into keeping audio context alive
+// This is the standard trick used by Spotify/YouTube PWAs
+var silentAud=null;
+function startSilentAudio(){
+  try{
+    if(silentAud)return;
+    var ctx=new(window.AudioContext||window.webkitAudioContext)();
+    var buf=ctx.createBuffer(1,ctx.sampleRate,ctx.sampleRate);
+    var src=ctx.createBufferSource();
+    src.buffer=buf;
+    src.loop=true;
+    src.connect(ctx.destination);
+    src.start();
+    silentAud=src;
+  }catch(x){}
+}
+
+// 3. Re-acquire wake lock and resume audio on visibility change
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible'){
+    reqWL();
+    if(playing&&ytRdy&&ytp){try{ytp.playVideo();}catch(x){}}
+  }
+});
+
+// 4. Keep alive ping - prevents browser from suspending
+setInterval(function(){
+  if(playing&&ytRdy&&ytp){
+    try{
+      var st=ytp.getPlayerState();
+      if(st===2||st===-1){ytp.playVideo();}
+    }catch(x){}
+  }
+},5000);
+
+// 5. Page visibility + screen off detection
+window.addEventListener('blur',function(){
+  if(playing) setTimeout(function(){
+    if(playing&&ytRdy&&ytp){try{ytp.playVideo();}catch(x){}}
+  },2000);
+});
+
 reqWL();
+// Start silent audio on first user interaction
+document.addEventListener('click',function(){startSilentAudio();},{once:true});
+document.addEventListener('touchstart',function(){startSilentAudio();},{once:true});
 </script>
 </body>
 </html>
