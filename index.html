@@ -328,193 +328,544 @@ body{background:var(--bk);color:var(--txt);font-family:'Raleway',sans-serif;tran
 </div>
 
 <script>
-<script>
-// ===== CONFIG =====
 var KEY='AIzaSyB7nq_h966bcTlt0RLRhaaaIV6siCM6pyI';
-
 var tracks=[],cur=-1,playing=false,sh=false,rp=false,vol=90;
+var tmr=null,errCnt=0,curList='s';
 var ytp=null,ytRdy=false,queue=[];
-var crossfade=true,cfDur=2500;
+var crossfade=false,cfDur=3000;
 var relatedTracks=[],lastQuery='';
 var dayMode=false;
-var isSwitching=false;
 
-// ===== YOUTUBE READY =====
+// ── YOUTUBE API ───────────────────────────────────────
 window.onYouTubeIframeAPIReady=function(){
   ytp=new YT.Player('ytc',{
-    width:'1',height:'1',
-    playerVars:{autoplay:0,controls:0,playsinline:1},
+    width:'2',height:'2',
+    playerVars:{autoplay:0,controls:0,playsinline:1,rel:0,enablejsapi:1,origin:location.origin},
     events:{
       onReady:function(){
-        ytRdy=true;
-        ytp.setVolume(vol);
+        ytRdy=true;ytp.setVolume(vol);
+        showSt('ok','&#10003; Gati! Kërko këngën tënde.');
+        if(queue.length){var v=queue.shift();doPlay(v);}
       },
       onStateChange:function(e){
-        if(e.data===1){playing=true;updateBtn();}
-        if(e.data===2){playing=false;updateBtn();}
-        if(e.data===0){nextSmart();}
+        var S=YT.PlayerState;
+        if(e.data===S.PLAYING){
+          playing=true;errCnt=0;updB();startTmr();
+          document.getElementById('heq').classList.remove('off');
+          document.getElementById('vinylWrap').classList.add('spinning');
+          msSetup();showSt('');
+          checkAd();
+        }else if(e.data===S.PAUSED){
+          playing=false;updB();stopTmr();
+          document.getElementById('heq').classList.add('off');
+          document.getElementById('vinylWrap').classList.remove('spinning');
+        }else if(e.data===S.ENDED){
+          nextSmart();
+        }else if(e.data===-1){
+          try{ytp.playVideo();}catch(x){}
+        }
+      },
+      onError:function(){
+        errCnt++;ntf('Video nuk luhet — kaloj...');
+        if(errCnt<8)setTimeout(nextSmart,1000);else errCnt=0;
       }
     }
   });
 };
-(function(){
-  var s=document.createElement('script');
-  s.src='https://www.youtube.com/iframe_api';
-  document.head.appendChild(s);
-})();
+(function(){var s=document.createElement('script');s.src='https://www.youtube.com/iframe_api';document.head.appendChild(s);})();
 
-// ===== PLAY =====
-function play(i,src){
-  if(isSwitching) return;
-  isSwitching=true;
-
-  var list = src==='l'
-    ? JSON.parse(localStorage.getItem('sq_lk')||'[]')
-    : tracks;
-
-  tracks=list;
-  cur=i;
-
-  var t=tracks[i];
-  if(!t){isSwitching=false;return;}
-
-  updateNowPlaying(t);
-
-  if(crossfade && playing){
-    smoothSwitch(t.id);
-  } else {
-    loadVideo(t.id);
-  }
-
-  setTimeout(()=>isSwitching=false,500);
+// ── PLAY ENGINE ───────────────────────────────────────
+function doPlay(videoId){
+  if(!ytRdy||!ytp){queue=[videoId];return;}
+  ytp.loadVideoById({videoId:videoId});
+  var att=0,poll=setInterval(function(){
+    att++;
+    if(!ytp)return clearInterval(poll);
+    var st=ytp.getPlayerState();
+    if(st===1||st===3){clearInterval(poll);return;}
+    if(att>20){clearInterval(poll);return;}
+    try{ytp.playVideo();}catch(x){}
+  },500);
 }
 
-// ===== SMOOTH CROSSFADE =====
-function smoothSwitch(id){
-  let steps=15;
-  let step=0;
-  let startVol=vol;
+function play(i,src){
+  var list=src==='l'?JSON.parse(localStorage.getItem('sq_lk')||'[]')
+          :src==='s'?tracks:(window['list_'+src]||tracks);
+  if(src==='rc'){list=JSON.parse(localStorage.getItem('sq_rc')||'[]');}
+  tracks=list;curList=src;cur=i;
+  var t=tracks[i];if(!t)return;
+  updNP(t);
+  document.querySelectorAll('.trk').forEach(function(el,j){el.classList.toggle('on',j===i);});
+  svRc(t);ntf('&#9654; '+t.title.substring(0,50));
+  if(crossfade&&playing){
+    doCrossfade(t.id);
+  }else{
+    doPlay(t.id);
+  }
+  showNotifBar(t);
+}
 
-  let fadeOut=setInterval(()=>{
+// ── CROSSFADE ─────────────────────────────────────────
+function doCrossfade(newVideoId){
+  var step=0,steps=20,interval=cfDur/steps;
+  var origVol=vol;
+  var fadeOut=setInterval(function(){
     step++;
-    let v=startVol*(1-step/steps);
-    ytp.setVolume(v);
-
+    var v=Math.round(origVol*(1-step/steps));
+    if(ytRdy&&ytp)try{ytp.setVolume(v);}catch(x){}
     if(step>=steps){
       clearInterval(fadeOut);
-      loadVideo(id);
-
-      let stepIn=0;
-      let fadeIn=setInterval(()=>{
-        stepIn++;
-        let v2=startVol*(stepIn/steps);
-        ytp.setVolume(v2);
-        if(stepIn>=steps){
-          clearInterval(fadeIn);
-          ytp.setVolume(startVol);
-        }
-      }, cfDur/steps);
+      doPlay(newVideoId);
+      // Fade in
+      step=0;
+      var fadeIn=setInterval(function(){
+        step++;
+        var v2=Math.round(origVol*(step/steps));
+        if(ytRdy&&ytp)try{ytp.setVolume(v2);}catch(x){}
+        if(step>=steps){clearInterval(fadeIn);ytp.setVolume(origVol);}
+      },interval);
     }
-  }, cfDur/steps);
+  },interval);
 }
 
-// ===== LOAD VIDEO =====
-function loadVideo(id){
-  if(!ytRdy){queue=[id];return;}
-  ytp.loadVideoById(id);
+function togCF(){
+  crossfade=document.getElementById('cfCheck').checked;
+  ntf(crossfade?'Crossfade: ON &#127925;':'Crossfade: OFF');
 }
 
-// ===== CONTROLS =====
-function togPl(){
-  if(cur===-1) return;
-  if(playing) ytp.pauseVideo();
-  else ytp.playVideo();
+// ── AD SKIP ───────────────────────────────────────────
+var adTimer=null;
+function checkAd(){
+  clearInterval(adTimer);
+  adTimer=setInterval(function(){
+    if(!ytp||!ytRdy)return;
+    try{
+      var dur=ytp.getDuration()||0;
+      var pos=ytp.getCurrentTime()||0;
+      if(dur>0&&dur<35&&pos>0){
+        ytp.seekTo(dur,true);
+      }
+    }catch(x){}
+  },600);
+  setTimeout(function(){clearInterval(adTimer);},40000);
 }
 
-function next(){
-  if(!tracks.length) return;
-  cur=(cur+1)%tracks.length;
-  play(cur);
-}
-
-function prev(){
-  if(!tracks.length) return;
-  cur=(cur-1+tracks.length)%tracks.length;
-  play(cur);
-}
-
-// ===== SMART NEXT =====
-function nextSmart(){
+// ── SMART AUTOPLAY ────────────────────────────────────
+async function nextSmart(){
+  if(relatedTracks.length>0){
+    var nxt=relatedTracks.shift();
+    tracks.unshift(nxt);cur=0;
+    updNP(nxt);doPlay(nxt.id);
+    ntf('&#9654; '+nxt.title.substring(0,50));
+    showNotifBar(nxt);
+    if(relatedTracks.length<3)fetchRelated(nxt.title);
+    return;
+  }
   if(cur<tracks.length-1){
     next();
-  } else {
-    cur=0;
-    play(cur);
+  }else{
+    // Fetch more related
+    var t=tracks[cur];
+    if(t){await fetchRelated(t.title);if(relatedTracks.length>0){nextSmart();return;}}
+    cur=0;play(0,curList);
   }
 }
 
-// ===== UI UPDATE =====
-function updateNowPlaying(t){
-  document.getElementById('nptl').textContent=t.title;
-  document.getElementById('npch').textContent=t.channel;
-  document.getElementById('npim').src=t.thumb;
+async function fetchRelated(title){
+  if(!title)return;
+  try{
+    var artist=title.split('-')[0].trim().split(' ').slice(0,2).join(' ');
+    var queries=[
+      artist+' shqip',
+      'remix shqip '+new Date().getFullYear(),
+      artist+' kenget me te mira'
+    ];
+    var q=queries[Math.floor(Math.random()*queries.length)];
+    if(q===lastQuery)return;
+    lastQuery=q;
+    var d=await ytFetch('search',{q:q,type:'video',maxResults:10});
+    var list=i2t(d.items);
+    var played=JSON.parse(localStorage.getItem('sq_rc')||'[]').map(function(x){return x.id;});
+    list=list.filter(function(t){return played.indexOf(t.id)===-1;});
+    relatedTracks=relatedTracks.concat(list).slice(0,15);
+  }catch(x){}
 }
 
-function updateBtn(){
-  let icon=playing?'❚❚':'▶';
-  ['pb','mpb','fpb','nbPlay'].forEach(id=>{
-    let el=document.getElementById(id);
-    if(el) el.innerHTML=icon;
+// ── CONTROLS ─────────────────────────────────────────
+function updNP(t){
+  document.getElementById('nptl').textContent=t.title;
+  document.getElementById('ftt').textContent=t.title;
+  document.getElementById('npch').textContent=t.channel;
+  document.getElementById('fch').textContent=t.channel;
+  setThumb('npim','npni',t.thumb);
+  setThumb('fimg','fno',t.thumb);
+  updB();updHrt();
+}
+function setThumb(iId,fId,s){
+  var img=document.getElementById(iId),fb=document.getElementById(fId);
+  if(!s){img.style.opacity=0;fb.style.display='flex';return;}
+  fb.style.display='none';img.style.opacity=1;
+  img.onerror=function(){img.style.opacity=0;fb.style.display='flex';};
+  img.src=s;
+}
+function updB(){
+  var ic=playing?'&#9646;&#9646;':'&#9654;';
+  ['pb','mpb','fpb','nbPlay'].forEach(function(id){
+    var el=document.getElementById(id);if(el)el.innerHTML=ic;
   });
 }
+function togPl(){
+  if(cur===-1){ntf('Zgjidh një këngë');return;}
+  if(!ytRdy||!ytp)return;
+  if(playing)ytp.pauseVideo();else ytp.playVideo();
+}
+function prev(){if(!tracks.length)return;var i=sh?rnd():cur-1;if(i<0)i=tracks.length-1;play(i,curList);}
+function next(){if(!tracks.length)return;var i=rp?cur:sh?rnd():cur+1;if(i>=tracks.length)i=0;play(i,curList);}
+function rnd(){return Math.floor(Math.random()*tracks.length);}
+function togSh(){sh=!sh;['shb','fsh'].forEach(function(id){document.getElementById(id).classList.toggle('on',sh);});ntf(sh?'Shuffle ON':'Shuffle OFF');}
+function togRp(){rp=!rp;['rpb','frp'].forEach(function(id){document.getElementById(id).classList.toggle('on',rp);});ntf(rp?'Repeat ON':'Repeat OFF');}
+function setVol(v){vol=parseInt(v);['mvs','fvs'].forEach(function(id){document.getElementById(id).value=v;});if(ytRdy&&ytp)ytp.setVolume(vol);}
 
-// ===== VOLUME =====
-function setVol(v){
-  vol=parseInt(v);
-  if(ytp) ytp.setVolume(vol);
+function startTmr(){
+  stopTmr();
+  tmr=setInterval(function(){
+    if(!ytRdy||!ytp)return;
+    try{
+      var p=ytp.getCurrentTime()||0,d=ytp.getDuration()||0,pc=d>0?(p/d)*100:0;
+      ['mpf','fpf'].forEach(function(id){document.getElementById(id).style.width=pc+'%';});
+      ['mct','fc'].forEach(function(id){document.getElementById(id).textContent=fmt(p);});
+      ['mdt','fd'].forEach(function(id){document.getElementById(id).textContent=fmt(d);});
+      // Crossfade trigger: start fade 3s before end
+      if(crossfade&&d>0&&(d-p)<cfDur/1000+0.5&&(d-p)>0.2){
+        // Will be handled by ENDED event
+      }
+      try{if('mediaSession' in navigator&&navigator.mediaSession.setPositionState&&d>0)
+        navigator.mediaSession.setPositionState({duration:d,playbackRate:1,position:p});}catch(x){}
+    }catch(x){}
+  },1000);
+}
+function stopTmr(){if(tmr){clearInterval(tmr);tmr=null;}}
+function seek(e,bar){
+  if(!ytRdy||!ytp)return;
+  try{var d=ytp.getDuration()||0;if(!d)return;var r=bar.getBoundingClientRect();ytp.seekTo(Math.max(0,Math.min(1,(e.clientX-r.left)/r.width))*d,true);}catch(x){}
 }
 
-// ===== THEME =====
+// ── NOTIFICATION BAR (lock screen) ───────────────────
+var nbTimer=null;
+function showNotifBar(t){
+  var bar=document.getElementById('notifBar');
+  document.getElementById('nbTitle').textContent=t.title;
+  document.getElementById('nbChan').textContent=t.channel;
+  document.getElementById('nbImg').src=t.thumb||'';
+  bar.classList.add('show');
+  clearTimeout(nbTimer);
+  nbTimer=setTimeout(function(){bar.classList.remove('show');},4000);
+}
+
+// ── MEDIA SESSION (Android Auto + Lock Screen) ────────
+function msSetup(){
+  if(!('mediaSession' in navigator))return;
+  var t=tracks[cur];if(!t)return;
+  var thumb=t.thumb||'';
+  var thumbHQ='https://i.ytimg.com/vi/'+t.id+'/maxresdefault.jpg';
+  navigator.mediaSession.metadata=new MediaMetadata({
+    title:t.title,artist:t.channel,album:'Shqipëria Music',
+    artwork:[
+      {src:thumbHQ,sizes:'1280x720',type:'image/jpeg'},
+      {src:thumb,sizes:'480x360',type:'image/jpeg'},
+      {src:'https://i.ytimg.com/vi/'+t.id+'/mqdefault.jpg',sizes:'320x180',type:'image/jpeg'}
+    ]
+  });
+  navigator.mediaSession.setActionHandler('play',function(){if(ytp)ytp.playVideo();});
+  navigator.mediaSession.setActionHandler('pause',function(){if(ytp)ytp.pauseVideo();});
+  navigator.mediaSession.setActionHandler('nexttrack',nextSmart);
+  navigator.mediaSession.setActionHandler('previoustrack',prev);
+  try{navigator.mediaSession.setActionHandler('seekto',function(d){if(ytp)ytp.seekTo(d.seekTime,true);});}catch(x){}
+  navigator.mediaSession.playbackState='playing';
+}
+
+// ── THEME (ditë/natë automatik) ──────────────────────
+function applyTheme(){
+  var h=new Date().getHours();
+  var shouldBeDay=(h>=7&&h<20);
+  if(shouldBeDay!==dayMode){
+    dayMode=shouldBeDay;
+    document.body.classList.toggle('day-mode',dayMode);
+    document.getElementById('themeBtn').textContent=dayMode?'☀':'☾';
+    var ply=document.querySelector('.ply');
+    if(ply)ply.style.background=dayMode?'rgba(240,237,232,.98)':'rgba(6,6,6,.98)';
+  }
+}
 function togTheme(){
   dayMode=!dayMode;
   document.body.classList.toggle('day-mode',dayMode);
+  document.getElementById('themeBtn').textContent=dayMode?'☀':'☾';
+  var ply=document.querySelector('.ply');
+  if(ply)ply.style.background=dayMode?'rgba(240,237,232,.98)':'rgba(6,6,6,.98)';
+  ntf(dayMode?'☀ Tema e ditës':'☾ Tema e natës');
   localStorage.setItem('sq_theme',dayMode?'day':'night');
 }
+// Load saved theme
+(function(){
+  var saved=localStorage.getItem('sq_theme');
+  if(saved==='day'){dayMode=true;document.body.classList.add('day-mode');document.getElementById('themeBtn').textContent='☀';}
+  applyTheme();
+  setInterval(applyTheme,60000);
+})();
 
-// ===== SEARCH =====
-async function doSearch(){
-  let q=document.getElementById('si').value;
-  if(!q) return;
-
-  let res=await fetch(
-    'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=20&q='
-    +encodeURIComponent(q)+'&key='+KEY
-  );
-
-  let data=await res.json();
-
-  tracks=data.items.map(it=>{
-    return{
-      id:it.id.videoId,
-      title:it.snippet.title,
-      channel:it.snippet.channelTitle,
-      thumb:it.snippet.thumbnails.medium.url
-    };
+// ── EQUALIZER ────────────────────────────────────────
+var eqFilters=[];
+function initEQ(){
+  try{
+    if(eqFilters.length)return;
+    var ctx=new(window.AudioContext||window.webkitAudioContext)();
+    var freqs=[60,250,1000,4000,16000];
+    var types=['lowshelf','peaking','peaking','peaking','highshelf'];
+    eqFilters=freqs.map(function(f,i){
+      var filter=ctx.createBiquadFilter();
+      filter.type=types[i];filter.frequency.value=f;filter.gain.value=0;
+      return filter;
+    });
+    for(var i=0;i<eqFilters.length-1;i++)eqFilters[i].connect(eqFilters[i+1]);
+    eqFilters[eqFilters.length-1].connect(ctx.destination);
+    var saved=JSON.parse(localStorage.getItem('sq_eq')||'null');
+    if(saved){['eq60','eq250','eq1k','eq4k','eq16k'].forEach(function(id,i){
+      var el=document.getElementById(id);if(el){el.value=saved[i]||0;document.getElementById(id+'v').textContent=saved[i]||0;}
+      if(eqFilters[i])eqFilters[i].gain.value=parseFloat(saved[i]||0);
+    });}
+  }catch(x){}
+}
+function togEQ(){
+  initEQ();
+  document.getElementById('eqPanel').classList.toggle('open');
+}
+function updateEQ(el,valId){
+  document.getElementById(valId).textContent=el.value;
+  var ids=['eq60','eq250','eq1k','eq4k','eq16k'];
+  ids.forEach(function(id,i){if(eqFilters[i])eqFilters[i].gain.value=parseFloat(document.getElementById(id).value||0);});
+  localStorage.setItem('sq_eq',JSON.stringify(ids.map(function(id){return document.getElementById(id).value;})));
+}
+function eqPreset(b,b2,m,t1,t2){
+  var vals=[b,b2,m,t1,t2];
+  ['eq60','eq250','eq1k','eq4k','eq16k'].forEach(function(id,i){
+    document.getElementById(id).value=vals[i];
+    document.getElementById(id+'v').textContent=vals[i];
+    if(eqFilters[i])eqFilters[i].gain.value=vals[i];
   });
-
-  renderResults();
+  localStorage.setItem('sq_eq',JSON.stringify(vals));
+  ntf('EQ preset u zbatua!');
 }
 
-// ===== RENDER =====
-function renderResults(){
-  let el=document.getElementById('rl');
-  el.innerHTML=tracks.map((t,i)=>`
-    <div class="trk" onclick="play(${i})">
-      <img src="${t.thumb}" style="width:50px">
-      <div>${t.title}</div>
-    </div>
-  `).join('');
+// ── LIKE / PLAYLIST ───────────────────────────────────
+function togLk(){
+  if(cur===-1)return;var t=tracks[cur];
+  var lk=JSON.parse(localStorage.getItem('sq_lk')||'[]');
+  var ex=lk.findIndex(function(x){return x.id===t.id;});
+  if(ex!==-1){lk.splice(ex,1);ntf('Hequr');}else{lk.unshift(t);ntf('&#9829; Shtuar!');}
+  localStorage.setItem('sq_lk',JSON.stringify(lk));updHrt();
 }
+function updHrt(){
+  if(cur===-1)return;
+  var lk=JSON.parse(localStorage.getItem('sq_lk')||'[]');
+  var ok=lk.some(function(x){return x.id===(tracks[cur]||{}).id;});
+  document.getElementById('hbtn').classList.toggle('on',ok);
+  document.getElementById('hbtn').innerHTML=ok?'&#9829;':'&#9825;';
+}
+function svRc(t){
+  var rc=JSON.parse(localStorage.getItem('sq_rc')||'[]');
+  rc=rc.filter(function(x){return x.id!==t.id;});rc.unshift(t);
+  if(rc.length>50)rc.pop();localStorage.setItem('sq_rc',JSON.stringify(rc));
+}
+function renderLk(){
+  var lk=JSON.parse(localStorage.getItem('sq_lk')||'[]');
+  var el=document.getElementById('ll');
+  if(!lk.length){el.innerHTML='<div class="emp">Nuk ke ende këngë &#9825;</div>';return;}
+  renderList(lk,el,'l');
+}
+function renderRc(){
+  var rc=JSON.parse(localStorage.getItem('sq_rc')||'[]');
+  var el=document.getElementById('rcl');
+  if(!rc.length){el.innerHTML='<div class="emp">Historiku është bosh</div>';return;}
+  renderList(rc,el,'rc');
+}
+function createPL(){
+  var name=document.getElementById('plName').value.trim();
+  if(!name){ntf('Shkruaj emrin');return;}
+  var pls=JSON.parse(localStorage.getItem('sq_pls')||'{}');
+  if(pls[name]){ntf('Ekziston tashmë');return;}
+  pls[name]=[];localStorage.setItem('sq_pls',JSON.stringify(pls));
+  document.getElementById('plName').value='';
+  ntf('&#9783; "'+name+'" u krijua!');renderPLs();
+}
+function renderPLs(){
+  var pls=JSON.parse(localStorage.getItem('sq_pls')||'{}');
+  var el=document.getElementById('pll');
+  var names=Object.keys(pls);
+  if(!names.length){el.innerHTML='<div class="emp">Nuk ke ende playlist &#9783;</div>';return;}
+  el.innerHTML=names.map(function(n){
+    return'<div style="display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid rgba(200,195,185,.06);cursor:pointer;" onclick="playPL(\''+encodeURIComponent(n)+'\')">'
+      +'<div style="width:46px;height:46px;border-radius:8px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:20px;margin-right:12px;">&#9783;</div>'
+      +'<div style="flex:1;"><div style="font-size:13px;font-weight:600;color:var(--txt);">'+esc(n)+'</div>'
+      +'<div style="font-size:11px;color:rgba(200,195,185,.4);">'+pls[n].length+' këngë</div></div>'
+      +'<button onclick="event.stopPropagation();delPL(\''+encodeURIComponent(n)+'\')" style="background:none;border:none;color:rgba(200,195,185,.3);font-size:16px;cursor:pointer;padding:8px;">&#128465;</button>'
+      +'</div>';
+  }).join('');
+}
+function playPL(en){
+  var n=decodeURIComponent(en);
+  var pls=JSON.parse(localStorage.getItem('sq_pls')||'{}');
+  var list=pls[n]||[];
+  if(!list.length){ntf('Playlist e zbrazët — shto këngë me &#9783;');return;}
+  window['list_pl_'+n]=list;tracks=list;curList='pl_'+n;
+  renderList(list,document.getElementById('pll'),'pl_'+n);
+  play(0,'pl_'+n);
+}
+function delPL(en){
+  var n=decodeURIComponent(en);
+  var pls=JSON.parse(localStorage.getItem('sq_pls')||'{}');
+  delete pls[n];localStorage.setItem('sq_pls',JSON.stringify(pls));
+  ntf('U fshi "'+n+'"');renderPLs();
+}
+function addToPL(t){
+  var pls=JSON.parse(localStorage.getItem('sq_pls')||'{}');
+  var names=Object.keys(pls);
+  if(!names.length){ntf('Krijo një playlist fillimisht');swTab('pl');return;}
+  if(names.length===1){
+    if(pls[names[0]].find(function(x){return x.id===t.id;})){ntf('Tashmë është');return;}
+    pls[names[0]].push(t);localStorage.setItem('sq_pls',JSON.stringify(pls));
+    ntf('&#9783; Shtuar te "'+names[0]+'"');return;
+  }
+  var picker=document.createElement('div');
+  picker.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.87);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
+  picker.innerHTML='<div style="background:#181818;border-radius:12px;width:100%;max-width:320px;overflow:hidden;">'
+    +'<div style="padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08);font-family:Cinzel,serif;font-size:11px;letter-spacing:2px;color:#CC0000;">SHTO TE PLAYLIST</div>'
+    +names.map(function(n){return'<div style="padding:14px 16px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05);color:#F5F0E8;font-size:14px;" onclick="(function(){var pls=JSON.parse(localStorage.getItem(\'sq_pls\')||\'{}\')||{};if(!pls[\''+n+'\'].find(function(x){return x.id===\''+t.id+'\';})){pls[\''+n+'\'].push('+JSON.stringify(t).replace(/'/g,'\\\'').replace(/"/g,'&quot;')+')}localStorage.setItem(\'sq_pls\',JSON.stringify(pls));ntf(\'&#9783; Shtuar te &quot;'+n+'&quot;\');document.body.removeChild(document.querySelector(\'[style*=fixed][style*=9999]\'))})()">'+esc(n)+'</div>';}).join('')
+    +'<div style="padding:14px 16px;cursor:pointer;color:rgba(245,240,232,.35);font-size:13px;" onclick="document.body.removeChild(document.querySelector(\'[style*=fixed][style*=9999]\'))">Anulo</div>'
+    +'</div>';
+  document.body.appendChild(picker);
+}
+
+// ── SEARCH & FETCH ────────────────────────────────────
+async function doSearch(){
+  var q=document.getElementById('si').value.trim();if(!q)return;
+  document.getElementById('rl').innerHTML='<div class="dots"><i></i><i></i><i></i></div>';
+  swTab('s');showSt('inf','&#9203; Duke kërkuar...');
+  relatedTracks=[];lastQuery='';
+  try{
+    var d=await ytFetch('search',{q:q+' shqip',type:'video',maxResults:20});
+    var list=i2t(d.items);
+    var durs=await getDurs(list.map(function(t){return t.id;}));
+    list.forEach(function(t){if(durs[t.id])t.duration=durs[t.id];});
+    tracks=list;curList='s';
+    renderList(tracks,document.getElementById('rl'),'s');
+    showSt('ok','&#10003; '+tracks.length+' këngë — prek për të dëgjuar!');
+    setTimeout(function(){fetchRelated(q);},1500);
+  }catch(e){showSt('err','&#10060; '+e.message);document.getElementById('rl').innerHTML='<div class="emp"><div class="ic">&#9888;</div>'+esc(e.message)+'</div>';}
+}
+async function loadPreset(q,elId,lKey){
+  var el=document.getElementById(elId);el.innerHTML='<div class="dots"><i></i><i></i><i></i></div>';
+  try{
+    var d=await ytFetch('search',{q:q,type:'video',maxResults:25});
+    var list=i2t(d.items);
+    var durs=await getDurs(list.map(function(t){return t.id;}));
+    list.forEach(function(t){if(durs[t.id])t.duration=durs[t.id];});
+    window[lKey]=list;renderList(list,el,lKey);
+  }catch(e){el.innerHTML='<div class="emp"><div class="ic">&#9888;</div>'+esc(e.message)+'</div>';}
+}
+async function ytFetch(ep,params){
+  var url='https://www.googleapis.com/youtube/v3/'+ep+'?part=snippet&key='+KEY;
+  Object.keys(params).forEach(function(k){url+='&'+k+'='+encodeURIComponent(params[k]);});
+  var ctrl=new AbortController(),tid=setTimeout(function(){ctrl.abort();},10000);
+  try{var r=await fetch(url,{signal:ctrl.signal});clearTimeout(tid);var d=await r.json();if(d.error)throw new Error(d.error.message);return d;}
+  catch(e){clearTimeout(tid);throw e;}
+}
+async function getDurs(ids){
+  try{var r=await fetch('https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id='+ids.join(',')+'&key='+KEY);var d=await r.json();var m={};(d.items||[]).forEach(function(v){m[v.id]=pDur(v.contentDetails.duration);});return m;}catch(x){return {};}
+}
+function i2t(items){
+  return(items||[]).map(function(it){
+    var id=it.id.videoId||it.id,sn=it.snippet||{},th=sn.thumbnails||{};
+    var thumb=(th.high||th.medium||th.default||{}).url||('https://i.ytimg.com/vi/'+id+'/hqdefault.jpg');
+    return{id:id,title:dH(sn.title||''),channel:sn.channelTitle||'',thumb:thumb,duration:'—'};
+  });
+}
+
+// ── RENDER ────────────────────────────────────────────
+function renderList(arr,el,src){
+  if(!arr.length){el.innerHTML='<div class="emp">Asnjë rezultat</div>';return;}
+  el.innerHTML=arr.map(function(t,i){
+    var on=(cur===i&&curList===src)?' on':'';
+    var ts=JSON.stringify(t).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    return'<div class="trk'+on+'" onclick="play('+i+',\''+src+'\')">'
+      +'<div class="tth"><img src="'+t.thumb+'" alt="" loading="lazy" onerror="this.style.opacity=0;this.nextSibling.style.display=\'flex\'">'
+      +'<div class="tno" style="display:none"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 18V5l12-2v13" stroke="#D4AF37" stroke-width="1.5" stroke-linecap="round"/><circle cx="6" cy="18" r="3" stroke="#D4AF37" stroke-width="1.5"/><circle cx="18" cy="16" r="3" stroke="#D4AF37" stroke-width="1.5"/></svg></div>'
+      +'<div class="pov">&#9654;</div></div>'
+      +'<div class="ti"><div class="tn">'+esc(t.title)+'</div><div class="tc2">'+esc(t.channel)+'</div></div>'
+      +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">'
+      +'<span class="td">'+t.duration+'</span>'
+      +'<button onclick="event.stopPropagation();addToPL(JSON.parse(this.dataset.t))" data-t="'+ts+'" style="background:none;border:none;color:rgba(200,195,185,.25);font-size:13px;cursor:pointer;padding:2px 4px;" title="Shto te playlist">&#9783;</button>'
+      +'</div></div>';
+  }).join('');
+}
+
+// ── TABS ─────────────────────────────────────────────
+function swTab(n){
+  ['s','h','n','l','rc','pl'].forEach(function(x,i){
+    var tel=document.getElementById('t'+x);if(tel)tel.classList.toggle('on',x===n);
+    var tabs=document.querySelectorAll('.tab');if(tabs[i])tabs[i].classList.toggle('on',x===n);
+  });
+  if(n==='h'&&!window.hList)loadPreset('muzik shqip top hite 2024 2025','hl','hList');
+  if(n==='n'&&!window.nList)loadPreset('kenget e reja shqip 2025 2026','nl','nList');
+  if(n==='l')renderLk();
+  if(n==='rc')renderRc();
+  if(n==='pl')renderPLs();
+}
+function oFull(){document.getElementById('full').classList.add('on');}
+function cFull(){document.getElementById('full').classList.remove('on');}
+
+// ── BACKGROUND / LOCK SCREEN KEEP-ALIVE ──────────────
+var wl=null;
+async function reqWL(){
+  try{
+    if('wakeLock' in navigator){
+      wl=await navigator.wakeLock.request('screen');
+      wl.addEventListener('release',function(){setTimeout(reqWL,1000);});
+    }
+  }catch(x){}
+}
+var silentCtx=null;
+function startSilent(){
+  try{
+    if(silentCtx)return;
+    silentCtx=new(window.AudioContext||window.webkitAudioContext)();
+    var buf=silentCtx.createBuffer(1,silentCtx.sampleRate,silentCtx.sampleRate);
+    var src=silentCtx.createBufferSource();
+    src.buffer=buf;src.loop=true;src.connect(silentCtx.destination);src.start();
+  }catch(x){}
+}
+// Keep-alive: resume if paused by lock screen
+setInterval(function(){
+  if(playing&&ytRdy&&ytp){
+    try{var st=ytp.getPlayerState();if(st===2||st===-1){ytp.playVideo();}}catch(x){}
+  }
+},4000);
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible'){
+    reqWL();
+    if(playing&&ytRdy&&ytp){try{ytp.playVideo();}catch(x){}}
+  }
+});
+document.addEventListener('click',function(){startSilent();initEQ();},{once:true});
+document.addEventListener('touchstart',function(){startSilent();initEQ();},{once:true});
+reqWL();
+
+// ── UTILS ─────────────────────────────────────────────
+function showSt(t,m){var el=document.getElementById('apiSt');el.className='status'+(t?' '+t:'');el.innerHTML=m||'';}
+function ntf(m){var el=document.getElementById('ntf');el.innerHTML=m;el.classList.add('on');clearTimeout(el._t);el._t=setTimeout(function(){el.classList.remove('on');},2800);}
+function fmt(s){if(!s||isNaN(s))return'0:00';s=Math.floor(s);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
+function pDur(iso){var m=iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);if(!m)return'—';var h=+(m[1]||0),mn=+(m[2]||0),s=+(m[3]||0);return h>0?h+':'+String(mn).padStart(2,'0')+':'+String(s).padStart(2,'0'):mn+':'+String(s).padStart(2,'0');}
+function dH(s){var t=document.createElement('textarea');t.innerHTML=s;return t.value;}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 </script>
 </body>
 </html>
